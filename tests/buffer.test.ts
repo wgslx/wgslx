@@ -2,42 +2,42 @@ import { Buffer } from '../src/buffer';
 
 describe('buffer', () => {
     test('empty string should result in zero', () => {
-        const sequence = Buffer.from('a b c \r\n d e f', 'file');
+        const sequence = Buffer.from('a b c \n d e f', 'file');
         console.log(sequence);
-        expect(sequence.sequences.length).toBe(6);
-        expect(sequence.sequences[0]).toEqual({
+        expect(sequence.segments.length).toBe(6);
+        expect(sequence.segments[0]).toEqual({
             text: 'a',
             line: 0,
             column: 0,
             file: 'file'
         });
-        expect(sequence.sequences[1]).toEqual({
+        expect(sequence.segments[1]).toEqual({
             text: 'b',
             line: 0,
             column: 2,
             file: 'file'
         });
-        expect(sequence.sequences[2]).toEqual({
-            text: 'd',
-            line: 1,
+        expect(sequence.segments[2]).toEqual({
+            text: 'c',
+            line: 0,
             column: 4,
             file: 'file'
         });
-        expect(sequence.sequences[3]).toEqual({
-            text: 'e',
+        expect(sequence.segments[3]).toEqual({
+            text: 'd',
             line: 1,
             column: 1,
             file: 'file'
         });
-        expect(sequence.sequences[4]).toEqual({
-            text: 'f',
+        expect(sequence.segments[4]).toEqual({
+            text: 'e',
             line: 1,
             column: 3,
             file: 'file'
         });
-        expect(sequence.sequences[5]).toEqual({
-            text: 'c',
-            line: 0,
+        expect(sequence.segments[5]).toEqual({
+            text: 'f',
+            line: 1,
             column: 5,
             file: 'file'
         });

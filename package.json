@@ -1,10 +1,11 @@
 {
-  "name": "wgslx",
+  "name": "@wgslx/wgslx",
   "version": "0.0.1",
   "description": "Extended WebGPU shading language tools",
   "main": "bin/index.js",
   "scripts": {
     "build": "npx tsc --project",
+    "publish": "npm publish --access public",
     "test": "npx jest"
   },
   "author": "Aaron Sun github.com/axiverse",

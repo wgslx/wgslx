@@ -22,9 +22,9 @@ const LINE_BREAK = [
     '\u2028', // line sparator
     '\u2029', // paragraph separator
 ];
-const LINE_BREAK_REGEX = /(\u000d\u000a?|[\u000a\u000b\u000c\u0085\u2028\u2029])+/u;
+const LINE_BREAK_REGEX = /(?:\u000d\u000a?|[\u000a\u000b\u000c\u0085\u2028\u2029])/;
 
-interface Sequence {
+interface Segment {
     text: string,
 
     file: string,
@@ -34,16 +34,18 @@ interface Sequence {
 
 /** Buffer for code with code pointers. */
 export class Buffer {
-    sequences: Sequence[];
+    segments: Segment[];
 
-    constructor(sequences: Sequence[]) {
-        this.sequences = sequences;
+    constructor(segments: Segment[]) {
+        this.segments = segments;
     }
 
     static from(text: string, file: string): Buffer {
         // Split by new lines.
         const lines = text.split(LINE_BREAK_REGEX);
-        const sequences: Sequence[] = [];
+        const segments: Segment[] = [];
+
+        console.log(lines);
 
         for (let l = 0; l < lines.length; l++) {
             const line = lines[l];
@@ -59,7 +61,7 @@ export class Buffer {
                 }
 
                 // Add text sequence
-                sequences.push({
+                segments.push({
                     text: line.substring(i, match.index),
                     file,
                     line: l,
@@ -71,7 +73,7 @@ export class Buffer {
 
             // Does not end in whitespace, add the remaining characters.
             if (i !== line.length) {
-                sequences.push({
+                segments.push({
                     text: line.substring(i),
                     file,
                     line: l,
@@ -80,6 +82,6 @@ export class Buffer {
             }
         }
 
-        return new Buffer(sequences);
+        return new Buffer(segments);
     }
 }
