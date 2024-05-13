@@ -6,10 +6,10 @@
 // U+00AB «, and U+00BB ». As this is done per file, templates opening and closing can not cross
 // file boundaries.
 
-import { IDENT_PATTERN_TOKEN_REGEX, matchBlankspace, matchBlockComment, matchIdentPatternToken, matchLineEndingComment, matchLiteral } from "./patterns";
+import { matchBlankspace, matchBlockComment, matchIdentPatternToken, matchLineEndingComment, matchLiteral } from "./patterns";
 
-const TEMPLATE_START = '\u00ab';
-const TEMPLATE_END = '\u00bb';
+const TEMPLATE_START = '\u276c';
+const TEMPLATE_END = '\u276d';
 
 interface UnclosedCandidate {
     position: number;
@@ -22,6 +22,27 @@ interface TemplateList {
 }
 
 export function preprocess(text: string) {
+    const templateLists = discoverTemplates(text);
+
+    text = text.replaceAll(/[<>]/g, (character, offset) => {
+        switch (character) {
+            case '<':
+                return templateLists.some(t => t.startPosition === offset)
+                    ? TEMPLATE_START
+                    : '<';
+            case '>':
+                return templateLists.some(t => t.endPosition === offset)
+                    ? TEMPLATE_END
+                    : '>';
+        }
+
+        throw new Error('Unidentified character.');
+    });
+
+    return text;
+}
+
+export function discoverTemplates(text: string) {
     const discoveredTemplateLists: TemplateList[] = [];
     const pendingCandidatesStack: UnclosedCandidate[] = [];
     let currentPosition = 0;
@@ -30,15 +51,18 @@ export function preprocess(text: string) {
     function matchAdvance(...matchers: Array<(text: string, position: number) => string>) {
         const startPosition = currentPosition;
         let matched = false;
+
+        rematch:
         do {
             for (let matcher of matchers) {
                 const match = matcher(text, currentPosition);
                 if (match) {
                     currentPosition += match.length;
                     matched = true;
-                    break;
+                    continue rematch;
                 }
             }
+            matched = false;
         } while (matched === true);
 
         return (startPosition === currentPosition)
@@ -49,7 +73,14 @@ export function preprocess(text: string) {
     function startsWithAdvance(...consts: string[]) {
         const rest = text.substring(currentPosition);
 
-        return consts.some(c => rest.startsWith(c));
+        for (const str of consts) {
+            if (rest.startsWith(str)) {
+                currentPosition += str.length;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Advance CurrentPosition past blankspace, comments, and literals.
@@ -140,6 +171,9 @@ export function preprocess(text: string) {
             }
             continue;
         }
+
+        throw new Error(`Unexpected position ${currentPosition}, ${text.substring(currentPosition)}`);
     }
 
+    return discoveredTemplateLists;
 }
