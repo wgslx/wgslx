@@ -27,7 +27,7 @@ export interface Cursor {
 }
 
 /** Match in a code sequence containing the match and the advanced cursor. */
-export interface Match {
+export interface TextMatch {
     /** The text of the match. */
     readonly text: string;
 
@@ -53,8 +53,13 @@ export class Sequence {
     /** List of segments that make up the sequence. */
     readonly segments: Segment[];
 
+    stringify(cursor: Cursor): string {
+        const segment = this.segments[cursor.segment];
+        return `${segment.line}:${segment.column + cursor.start}:${segment.file}`;
+    }
+
     /** Tries to match the text matcher at the given position. */
-    match(cursor: Cursor, matcher: TextMatcher): Match | null {
+    match(cursor: Cursor, matcher: TextMatcher): TextMatch | null {
         const segment = this.segments[cursor.segment];
         const match = matcher(segment.text, cursor.start);
 
