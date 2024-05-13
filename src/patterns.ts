@@ -1,4 +1,7 @@
-function regexMatcher(...regexes: RegExp[]) {
+export type TextMatcher = (text: string, position?: number) => string | undefined;
+
+/** Creates a RegExp text matcher that matches any of the given regular expressions. */
+export function createRegExpTextMatcher(...regexes: RegExp[]): TextMatcher {
     // Ensure that regex is sticky.
     const stickRegexes = regexes.map(r => {
         let flags = 'y';
@@ -11,26 +14,43 @@ function regexMatcher(...regexes: RegExp[]) {
         return new RegExp(r, flags);
     });
 
-    return (text: string, index?: number) => {
-        let longestMatch: RegExpExecArray | undefined = undefined;
+    return (text: string, start?: number) => {
+        let longest: RegExpExecArray | undefined = undefined;
 
         for (const regex of stickRegexes) {
-            regex.lastIndex = index ?? 0;
+            regex.lastIndex = start ?? 0;
             const match = regex.exec(text);
             if (match) {
-                if (longestMatch === undefined || match.length > longestMatch.length) {
-                    longestMatch = match;
+                if (!longest || match[0].length > longest[0].length) {
+                    longest = match;
                 }
             }
         }
 
-        return longestMatch?.[0];
+        return longest?.[0];
+    }
+}
+
+export function createStringTextMatcher(...strings: string[]): TextMatcher {
+    return (text: string, position?: number) => {
+        let longest: string | undefined = undefined;
+        if (position) text = text.substring(position);
+
+        for (let string of strings) {
+            if (text.startsWith(string)) {
+                if (longest === undefined || string.length > longest.length) {
+                    longest = string;
+                }
+            }
+        }
+
+        return longest;
     }
 }
 
 export const BLANKSPACE_REGEX = /[\u0020\u0009\u000a\u000b\u000c\u000d\u0085\u200e\u200f\u2028\u2029]+/;
 export const LINE_BREAK_REGEX = /(?:\u000d\u000a?|[\u000a\u000b\u000c\u0085\u2028\u2029])/;
-export const matchBlankspace = regexMatcher(BLANKSPACE_REGEX);
+export const matchBlankspace = createRegExpTextMatcher(BLANKSPACE_REGEX);
 
 export const BOOL_LITERAL_REGEX = [/true/, /false/];
 export const INT_DEC_LITERAL_REGEX = [/0[iu]?/, /[1-9][0-9]*[iu]?/];
@@ -52,17 +72,17 @@ export const FLOAT_LITERAL_REGEX = [...FLOAT_DEC_LITERAL_REGEX, ...FLOAT_HEX_LIT
 
 export const LITERAL_REGEX = [...BOOL_LITERAL_REGEX, ...INT_DEC_LITERAL_REGEX, ...FLOAT_LITERAL_REGEX];
 
-export const matchLiteral = regexMatcher(
+export const matchLiteral = createRegExpTextMatcher(
     ...LITERAL_REGEX
 )
 
 
 
 export const IDENT_PATTERN_TOKEN_REGEX = /([_\p{XID_Start}][\p{XID_Continue}]+)|([\p{XID_Start}])/u;
-export const matchIdentPatternToken = regexMatcher(IDENT_PATTERN_TOKEN_REGEX);
+export const matchIdentPatternToken = createRegExpTextMatcher(IDENT_PATTERN_TOKEN_REGEX);
 
 export const LINE_ENDING_COMMENT_REGEX = /\/\/.*$/;
-export const matchLineEndingComment = regexMatcher(LINE_ENDING_COMMENT_REGEX);
+export const matchLineEndingComment = createRegExpTextMatcher(LINE_ENDING_COMMENT_REGEX);
 
 
 
@@ -79,7 +99,7 @@ export function matchBlockComment(text: string, start?: number) {
     start = start ?? 0;
     let position = start;
 
-    if (text.substring(position, BLOCK_COMMENT_OPEN.length) != BLOCK_COMMENT_OPEN) {
+    if (text.substring(position, position + BLOCK_COMMENT_OPEN.length) !== BLOCK_COMMENT_OPEN) {
         // No block comment at the current position.
         return undefined;
     }
@@ -107,3 +127,18 @@ export function matchBlockComment(text: string, start?: number) {
 
     return text.substring(start, position);
 }
+
+
+const BLANKSPACE = [
+    '\u0020', // space
+    '\u0009', // horizontal tab
+    '\u000a', // line feed
+    '\u000b', // vertical tab
+    '\u000c', // form feed
+    '\u000d', // carriage return
+    '\u0085', // next line
+    '\u200e', // left to right mark
+    '\u200f', // right to left mark
+    '\u2028', // line separator
+    '\u2029', // paragraph separator
+];

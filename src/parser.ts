@@ -1,5 +1,7 @@
 // Implementation of Recursive Descent Parsing as descibed in the WGSL spec.
 
+import { Cursor } from "./cursor";
+import { Token } from "./token";
 
 const BOOL_LITERAL = [/true/, /false/];
 const INT_DEC_LITERAL = [/0[iu]?/, /[1-9][0-9]*[iu]?/];
@@ -22,31 +24,54 @@ const IDENT_PATTERN_TOKEN = [
     /([_\p{XID_Start}][\p{XID_Continue}]+)|([\p{XID_Start}])/u,
 ]
 
-
-
-type Matcher = () => void;
-
-/** Creates a matcher which matches any of the given literals exactly. */
-function createLiteralMatcher(literals: string[]) {
-
+interface RuleExec {
+    name?: string;
+    match: (cursor: Cursor) => Token[] | null;
 }
 
-/** Creates a matcher which matches any of the given regular expressions. */
-function createRegularExpressionMatcher(regularExpressions: RegExp[]) {
-
-}
+type Rule = RuleExec | string | RegExp | Rule[];
 
 /** Creates a matcher which matches a sequence. */
-function createSequentialMatcher(matcherSequence: Matcher[]) {
+function named(matcherSequence: RuleExec[]) {
+
+}
+
+function rule(rule: Rule): RuleExec {
+
+}
+
+const literalCache = new Map<string, RuleExec>();
+function literal(text: string): RuleExec {
+    if (literalCache.has(text)) {
+        return literalCache.get(text);
+    }
+
+    // if matches, return the text.
+    const rule = {
+        match: () => [],
+    };
+
+    literalCache.set(text, rule);
+    return rule;
+}
+
+const regexCache = new Map<string, RuleExec>();
+function regex(regex: RegExp): RuleExec {
+    // Create sticky regex.
 
 }
 
 /** Creates a matcher which matches a union. */
-function createUnionMatcher(matchers: Matcher[]) {
+function union(rules: RuleExec[]): RuleExec {
 
 }
 
 /** Creates a match which matches the child matcher a variable number of times. */
-function createRepeatedMatcher(matcher: Matcher) {
+function maybe(matcher: RuleExec): RuleExec {
+
+}
+
+/** Creates a match which matches the child matcher a variable number of times. */
+function any(matcher: RuleExec): RuleExec {
 
 }

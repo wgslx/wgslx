@@ -1,5 +1,12 @@
-export interface Cursor {
-    readonly buffer: Buffer;
-    readonly segment: number;
-    readonly offset: number;
+import { Cursor, Sequence } from './sequence';
+import { TextMatcher } from './patterns';
+
+
+export class Context {
+    readonly buffer: Sequence;
+    readonly cursor: Cursor;
+
+    rule(cursor: Cursor) {
+
+    }
 }
