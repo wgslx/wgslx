@@ -23,21 +23,14 @@ export interface RuleMatch extends TokenMatch {
     cursor: Cursor;
 }
 
-export interface RuleExec {
+export interface Rule {
     match: (cursor: Cursor, context: Context) => (RuleMatch | null);
 }
-
-export interface NamedRuleExec extends RuleExec {
-    readonly name: string;
-    rule?: RuleExec;
-    match: (cursor: Cursor, context: Context) => (RuleMatch | null);
-}
-
 
 /** Context for rule token matching. */
 export class Context {
     readonly sequence: Sequence;
-    readonly cache = new Map<string, Map<RuleExec, RuleMatch | null>>();
+    readonly cache = new Map<string, Map<Rule, RuleMatch | null>>();
 
     text(cursor: Cursor, matcher: TextMatcher): RuleMatch | null {
         // TODO: Optionally cache results, though this is linear cost.
@@ -59,7 +52,7 @@ export class Context {
         }
     }
 
-    rule(cursor: Cursor, rule: RuleExec): RuleMatch | null {
+    rule(cursor: Cursor, rule: Rule): RuleMatch | null {
         const cursorKey = this.sequence.stringify(cursor);
         const cached = this.get(cursorKey, rule);
 
@@ -73,7 +66,7 @@ export class Context {
     }
 
     /** Gets a match for a position and rule in the cache. */
-    get(cursorKey: string, rule: RuleExec): RuleMatch | null | undefined {
+    get(cursorKey: string, rule: Rule): RuleMatch | null | undefined {
         const cursorMap = this.cache.get(cursorKey);
 
         if (!cursorMap) {
@@ -84,11 +77,11 @@ export class Context {
     }
 
     /** Sets a match for a position and rule in the cache. */
-    set(cursorKey: string, rule: RuleExec, match: RuleMatch) {
+    set(cursorKey: string, rule: Rule, match: RuleMatch) {
         let cursorMap = this.cache.get(cursorKey);
 
         if (!cursorMap) {
-            cursorMap = new Map<RuleExec, RuleMatch | null>();
+            cursorMap = new Map<Rule, RuleMatch | null>();
             this.cache.set(cursorKey, cursorMap);
         }
 
@@ -104,11 +97,11 @@ export class Context {
     }
 }
 
-type RuleFlex = string | RegExp | RuleExec;
+type RuleFlex = string | RegExp | Rule;
 
-function rulify(rule: RuleFlex): RuleExec;
-function rulify(rules: RuleFlex[]): RuleExec[];
-function rulify(ruleOrRules: RuleFlex | RuleFlex[]): RuleExec | RuleExec[] {
+function rulify(rule: RuleFlex): Rule;
+function rulify(rules: RuleFlex[]): Rule[];
+function rulify(ruleOrRules: RuleFlex | RuleFlex[]): Rule | Rule[] {
     if (Array.isArray(ruleOrRules)) {
         return ruleOrRules.map(r => rulify(r));
     }
@@ -137,62 +130,207 @@ function tokenify(token: TokenMatch): TokenMatch {
     return t;
 }
 
-export function literal(...text: string[]): RuleExec {
-    const matcher = createStringTextMatcher(...text);
+export class LiteralRule implements Rule {
+    readonly matcher: TextMatcher;
+    readonly literals: string[];
 
-    // if matches, return the text.
-    const rule = {
-        match: (cursor: Cursor, context: Context) => {
-            return context.text(cursor, matcher);
-        },
-    };
-
-    return rule;
-}
-
-export function regex(...regex: RegExp[]): RuleExec {
-    const matcher = createRegExpTextMatcher(...regex);
-
-    // if matches, return the text.
-    const rule = {
-        match: (cursor: Cursor, context: Context) => {
-            return context.text(cursor, matcher);
-        },
-    };
-
-    return rule;
-}
-
-export function sequence(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
-    if (rest.length === 0) {
-        return rulify(first);
+    match(cursor: Cursor, context: Context) {
+        return context.text(cursor, this.matcher);
     }
 
+    constructor(literals: string[]) {
+        this.matcher = createStringTextMatcher(...literals);
+        this.literals = literals;
+    }
+}
+
+export function literal(...literals: string[]): Rule {
+    return new LiteralRule(literals);
+}
+
+export class RegExpRule implements Rule {
+    readonly matcher: TextMatcher;
+    readonly patterns: RegExp[];
+
+    match(cursor: Cursor, context: Context) {
+        return context.text(cursor, this.matcher);
+    }
+
+    constructor(patterns: RegExp[]) {
+        this.matcher = createRegExpTextMatcher(...patterns);
+        this.patterns = patterns;
+    }
+}
+
+export function regex(...patterns: RegExp[]): Rule {
+    return new RegExpRule(patterns)
+}
+
+export class SequenceRule implements Rule {
+    readonly rules: Rule[];
+
+    match(cursor: Cursor, context: Context) {
+        const matches: RuleMatch[] = [];
+        console.log(this.rules);
+        for (const rule of this.rules) {
+            const match = context.rule(cursor, rule);
+            if (!match) {
+                return null;
+            }
+            matches.push(match);
+            cursor = match.cursor;
+        }
+
+        return {
+            tokens: matches.map(tokenify),
+            cursor: cursor,
+        }
+    }
+
+    constructor(rules: Rule[]) {
+        this.rules = rules;
+    }
+}
+
+export function sequence(first: RuleFlex, ...rest: RuleFlex[]): Rule {
     const rules = rulify([first, ...rest]);
 
-    return {
-        match: (cursor: Cursor, context: Context) => {
-            const matches: RuleMatch[] = [];
-            for (const rule of rules) {
-                const match = context.rule(cursor, rule);
-                if (!match) {
-                    return null;
-                }
-                matches.push(match);
-                cursor = match.cursor;
+    if (rules.length === 0) {
+        console.log(first, rest);
+        throw new Error();
+    }
+
+    if (rules.length === 1) {
+        return rules[0];
+    }
+
+    return new SequenceRule(rules);
+}
+
+export class UnionRule implements Rule {
+    readonly rules: Rule[];
+
+    match(cursor: Cursor, context: Context) {
+
+        let longest: RuleMatch | undefined = undefined;
+
+        for (const rule of this.rules) {
+            const match = context.rule(cursor, rule);
+            if (!match) {
+                continue;
             }
 
-            return {
-                tokens: matches.map(tokenify),
-                cursor: cursor,
+            if (!longest) {
+                longest = match;
+                continue;
             }
-        },
+
+            if (match.cursor.segment > longest.cursor.segment) {
+                longest = match;
+                continue;
+            }
+
+            if (match.cursor.segment === longest.cursor.segment &&
+                match.cursor.start > longest.cursor.start) {
+
+                longest = match;
+                continue;
+            }
+        }
+
+        if (!longest) {
+            return null;
+        }
+
+        return longest;
+    }
+
+    constructor(rules: Rule[]) {
+        this.rules = rules;
     }
 }
 
-class NamedRuleExecImpl implements NamedRuleExec {
+export function union(first: RuleFlex, ...rest: RuleFlex[]): Rule {
+    const rules = rulify([first, ...rest]);
+
+    if (rules.length === 1) {
+        return rules[1];
+    }
+
+    // const literals: LiteralRule[] = [];
+    // const regexps: RegExpRule[] = [];
+    // const others: RuleExec[] = [];
+
+    return new UnionRule(rules);
+}
+
+export class MaybeRule implements Rule {
+    readonly rule: Rule;
+
+    match(cursor: Cursor, context: Context) {
+        const match = context.rule(cursor, this.rule);
+        if (match) {
+            return match;
+        }
+
+        return {
+            tokens: undefined,
+            cursor: cursor,
+        }
+    }
+
+    constructor(rule: Rule) {
+        this.rule = rule;
+    }
+}
+
+export function maybe(first: RuleFlex, ...rest: RuleFlex[]): Rule {
+    const rule = sequence(first, ...rest);
+    return new MaybeRule(rule);
+}
+
+export class StarRule implements Rule {
+    readonly rule: Rule;
+
+    match(cursor: Cursor, context: Context) {
+        const matches: RuleMatch[] = [];
+        let match = context.rule(cursor, this.rule);
+        while (match) {
+            matches.push(match);
+            match = context.rule(cursor, this.rule);
+        }
+
+        return {
+            tokens: matches,
+            cursor: cursor,
+        }
+    }
+
+    constructor(rule: Rule) {
+        this.rule = rule;
+    }
+}
+
+export function star(first: RuleFlex, ...rest: RuleFlex[]): Rule {
+    const rule = sequence(first, ...rest);
+    return new StarRule(rule);
+}
+
+class NamedRule implements Rule {
     readonly name: string;
-    rule?: RuleExec;
+    private rule?: Rule;
+
+    get(): Rule | null {
+        return this.rule ?? null;
+    }
+
+    set(rule: Rule) {
+        if (this.rule) {
+            throw new Error(`Duplicate initialization of rule ${this.rule}`);
+        }
+        this.rule = rule;
+    }
+
     match(cursor: Cursor, context: Context): RuleMatch {
         if (!this.rule) {
             throw new Error(`Uninitialized rule ${this.name}`);
@@ -214,9 +352,9 @@ class NamedRuleExecImpl implements NamedRuleExec {
     }
 }
 
-const registry = new Map<string, NamedRuleExec>();
-export function name(name: string): NamedRuleExec {
-    const rule = new NamedRuleExecImpl(name);
+const registry = new Map<string, NamedRule>();
+export function name(name: string): NamedRule {
+    const rule = new NamedRule(name);
 
     if (registry.has(name)) {
         throw new Error(`Duplicate named rule ${rule}`);
@@ -225,7 +363,7 @@ export function name(name: string): NamedRuleExec {
     return rule;
 }
 
-export function rule(name: string): NamedRuleExec {
+export function rule(name: string): NamedRule {
     const rule = registry.get(name);
 
     if (!rule) {
@@ -233,91 +371,4 @@ export function rule(name: string): NamedRuleExec {
     }
 
     return rule;
-}
-
-export function union(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
-    if (rest.length === 0) {
-        return rulify(first);
-    }
-
-    const rules = rulify([first, ...rest]);
-
-    return {
-        match: (cursor: Cursor, context: Context) => {
-            let longest: RuleMatch | undefined = undefined;
-
-            for (const rule of rules) {
-                const match = context.rule(cursor, rule);
-                if (!match) {
-                    continue;
-                }
-
-                if (!longest) {
-                    longest = match;
-                    continue;
-                }
-
-                if (match.cursor.segment > longest.cursor.segment) {
-                    longest = match;
-                    continue;
-                }
-
-                if (match.cursor.segment === longest.cursor.segment &&
-                    match.cursor.start > longest.cursor.start) {
-
-                    longest = match;
-                    continue;
-                }
-            }
-
-            if (!longest) {
-                return null;
-            }
-
-            return longest;
-        },
-    }
-
-}
-
-export function maybe(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
-    const rule = rest.length
-        ? sequence(first, ...rest)
-        : rulify(first);
-
-    return {
-        match: (cursor: Cursor, context: Context) => {
-            const match = context.rule(cursor, rule);
-            if (match) {
-                return match;
-            }
-
-            return {
-                tokens: undefined,
-                cursor: cursor,
-            }
-        },
-    }
-}
-
-export function star(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
-    const rule = rest.length
-        ? sequence(first, ...rest)
-        : rulify(first);
-
-    return {
-        match: (cursor: Cursor, context: Context) => {
-            const matches: RuleMatch[] = [];
-            let match = context.rule(cursor, rule);
-            while (match) {
-                matches.push(match);
-                match = context.rule(cursor, rule);
-            }
-
-            return {
-                tokens: matches,
-                cursor: cursor,
-            }
-        },
-    }
 }

@@ -83,7 +83,7 @@ while (ruleMatch) {
         })
 
 
-    implementation.push(`${variable}.rule = union(\n\t${rules.join(',\n\t')},\n);`)
+    implementation.push(`${variable}.set(union(\n\t${rules.join(',\n\t')},\n));`)
 
     ruleMatch = RULE_REGEX.exec(syntax);
 };
