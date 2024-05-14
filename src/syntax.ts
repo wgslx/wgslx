@@ -1,7 +1,20 @@
-// https://github.com/gpuweb/gpuweb/blob/main/wgsl/syntax.bnf
+// GENREATED FILE. DO NOT EDIT. RUN `npm run generate`
 
-import { maybe, name, star, union } from "./rules";
+import { maybe, name, sequence, star, union } from "./rules";
 
+// CONSTANTS
+const TEMPLATE_ARGS_START = '❬';
+const TEMPLATE_ARGS_END = '❭';
+const SHIFT_LEFT = '<<';
+const SHIFT_RIGHT = '>>';
+const LESS_THAN = '<';
+const GREATER_THAN = '>';
+const LESS_THAN_EQUAL = '<=';
+const GREATER_THAN_EQUAL = '>=';
+const SHIFT_LEFT_ASSIGN = '<<=';
+const SHIFT_RIGHT_ASSIGN = '>>=';
+
+// DECLARATIONS
 export const translationUnit = name('translation_unit');
 export const globalDirective = name('global_directive');
 export const globalDecl = name('global_decl');
@@ -122,3 +135,603 @@ export const softwareExtensionName = name('software_extension_name');
 export const identPatternToken = name('ident_pattern_token');
 export const severityControlName = name('severity_control_name');
 export const swizzleName = name('swizzle_name');
+
+// IMPLEMENTATIONS
+translationUnit.rule = union(
+	sequence(star(globalDirective), star(globalDecl)),
+);
+
+globalDirective.rule = union(
+	diagnosticDirective,
+	enableDirective,
+	requiresDirective,
+);
+
+globalDecl.rule = union(
+	';',
+	sequence(globalVariableDecl, ';'),
+	sequence(globalValueDecl, ';'),
+	sequence(typeAliasDecl, ';'),
+	structDecl,
+	functionDecl,
+	sequence(constAssertStatement, ';'),
+);
+
+boolLiteral.rule = union(
+	'true',
+	'false',
+);
+
+intLiteral.rule = union(
+	decimalIntLiteral,
+	hexIntLiteral,
+);
+
+decimalIntLiteral.rule = union(
+	/0[iu]?/,
+	/[1-9][0-9]*[iu]?/,
+);
+
+hexIntLiteral.rule = union(
+	/0[xX][0-9a-fA-F]+[iu]?/,
+);
+
+floatLiteral.rule = union(
+	decimalFloatLiteral,
+	hexFloatLiteral,
+);
+
+decimalFloatLiteral.rule = union(
+	/0[fh]/,
+	/[1-9][0-9]*[fh]/,
+	/[0-9]*\.[0-9]+([eE][+-]?[0-9]+)?[fh]?/,
+	/[0-9]+\.[0-9]*([eE][+-]?[0-9]+)?[fh]?/,
+	/[0-9]+[eE][+-]?[0-9]+[fh]?/,
+);
+
+hexFloatLiteral.rule = union(
+	/0[xX][0-9a-fA-F]*\.[0-9a-fA-F]+([pP][+-]?[0-9]+[fh]?)?/,
+	/0[xX][0-9a-fA-F]+\.[0-9a-fA-F]*([pP][+-]?[0-9]+[fh]?)?/,
+	/0[xX][0-9a-fA-F]+[pP][+-]?[0-9]+[fh]?/,
+);
+
+diagnosticDirective.rule = union(
+	sequence('diagnostic', diagnosticControl, ';'),
+);
+
+literal.rule = union(
+	intLiteral,
+	floatLiteral,
+	boolLiteral,
+);
+
+ident.rule = union(
+	identPatternToken,
+);
+
+memberIdent.rule = union(
+	identPatternToken,
+);
+
+diagnosticNameToken.rule = union(
+	identPatternToken,
+);
+
+diagnosticRuleName.rule = union(
+	diagnosticNameToken,
+	sequence(diagnosticNameToken, '.', diagnosticNameToken),
+);
+
+templateList.rule = union(
+	sequence(TEMPLATE_ARGS_START, templateArgCommaList, TEMPLATE_ARGS_END),
+);
+
+templateArgCommaList.rule = union(
+	sequence(templateArgExpression, star(sequence(',', templateArgExpression)), maybe(',')),
+);
+
+templateArgExpression.rule = union(
+	expression,
+);
+
+alignAttr.rule = union(
+	sequence('@', 'align', '(', expression, maybe(','), ')'),
+);
+
+bindingAttr.rule = union(
+	sequence('@', 'binding', '(', expression, maybe(','), ')'),
+);
+
+builtinAttr.rule = union(
+	sequence('@', 'builtin', '(', builtinValueName, maybe(','), ')'),
+);
+
+builtinValueName.rule = union(
+	identPatternToken,
+);
+
+constAttr.rule = union(
+	sequence('@', 'const'),
+);
+
+diagnosticAttr.rule = union(
+	sequence('@', 'diagnostic', diagnosticControl),
+);
+
+groupAttr.rule = union(
+	sequence('@', 'group', '(', expression, maybe(','), ')'),
+);
+
+idAttr.rule = union(
+	sequence('@', 'id', '(', expression, maybe(','), ')'),
+);
+
+interpolateAttr.rule = union(
+	sequence('@', 'interpolate', '(', interpolateTypeName, maybe(','), ')'),
+	sequence('@', 'interpolate', '(', interpolateTypeName, ',', interpolateSamplingName, maybe(','), ')'),
+);
+
+interpolateTypeName.rule = union(
+	identPatternToken,
+);
+
+interpolateSamplingName.rule = union(
+	identPatternToken,
+);
+
+invariantAttr.rule = union(
+	sequence('@', 'invariant'),
+);
+
+locationAttr.rule = union(
+	sequence('@', 'location', '(', expression, maybe(','), ')'),
+);
+
+mustUseAttr.rule = union(
+	sequence('@', 'must_use'),
+);
+
+sizeAttr.rule = union(
+	sequence('@', 'size', '(', expression, maybe(','), ')'),
+);
+
+workgroupSizeAttr.rule = union(
+	sequence('@', 'workgroup_size', '(', expression, maybe(','), ')'),
+	sequence('@', 'workgroup_size', '(', expression, ',', expression, maybe(','), ')'),
+	sequence('@', 'workgroup_size', '(', expression, ',', expression, ',', expression, maybe(','), ')'),
+);
+
+vertexAttr.rule = union(
+	sequence('@', 'vertex'),
+);
+
+fragmentAttr.rule = union(
+	sequence('@', 'fragment'),
+);
+
+computeAttr.rule = union(
+	sequence('@', 'compute'),
+);
+
+attribute.rule = union(
+	sequence('@', identPatternToken, maybe(argumentExpressionList)),
+	alignAttr,
+	bindingAttr,
+	builtinAttr,
+	constAttr,
+	diagnosticAttr,
+	groupAttr,
+	idAttr,
+	interpolateAttr,
+	invariantAttr,
+	locationAttr,
+	mustUseAttr,
+	sizeAttr,
+	workgroupSizeAttr,
+	vertexAttr,
+	fragmentAttr,
+	computeAttr,
+);
+
+diagnosticControl.rule = union(
+	sequence('(', severityControlName, ',', diagnosticRuleName, maybe(','), ')'),
+);
+
+structDecl.rule = union(
+	sequence('struct', ident, structBodyDecl),
+);
+
+structBodyDecl.rule = union(
+	sequence('{', structMember, star(sequence(',', structMember)), maybe(','), '}'),
+);
+
+structMember.rule = union(
+	sequence(star(attribute), memberIdent, ':', typeSpecifier),
+);
+
+typeAliasDecl.rule = union(
+	sequence('alias', ident, '=', typeSpecifier),
+);
+
+typeSpecifier.rule = union(
+	templateElaboratedIdent,
+);
+
+templateElaboratedIdent.rule = union(
+	sequence(ident, maybe(templateList)),
+);
+
+variableOrValueStatement.rule = union(
+	variableDecl,
+	sequence(variableDecl, '=', expression),
+	sequence('let', optionallyTypedIdent, '=', expression),
+	sequence('const', optionallyTypedIdent, '=', expression),
+);
+
+variableDecl.rule = union(
+	sequence('var', maybe(templateList), optionallyTypedIdent),
+);
+
+optionallyTypedIdent.rule = union(
+	sequence(ident, maybe(sequence(':', typeSpecifier))),
+);
+
+globalVariableDecl.rule = union(
+	sequence(star(attribute), variableDecl, maybe(sequence('=', expression))),
+);
+
+globalValueDecl.rule = union(
+	sequence('const', optionallyTypedIdent, '=', expression),
+	sequence(star(attribute), 'override', optionallyTypedIdent, maybe(sequence('=', expression))),
+);
+
+primaryExpression.rule = union(
+	templateElaboratedIdent,
+	callExpression,
+	literal,
+	parenExpression,
+);
+
+callExpression.rule = union(
+	callPhrase,
+);
+
+callPhrase.rule = union(
+	sequence(templateElaboratedIdent, argumentExpressionList),
+);
+
+parenExpression.rule = union(
+	sequence('(', expression, ')'),
+);
+
+argumentExpressionList.rule = union(
+	sequence('(', maybe(expressionCommaList), ')'),
+);
+
+expressionCommaList.rule = union(
+	sequence(expression, star(sequence(',', expression)), maybe(',')),
+);
+
+componentOrSwizzleSpecifier.rule = union(
+	sequence('[', expression, ']', maybe(componentOrSwizzleSpecifier)),
+	sequence('.', memberIdent, maybe(componentOrSwizzleSpecifier)),
+	sequence('.', swizzleName, maybe(componentOrSwizzleSpecifier)),
+);
+
+unaryExpression.rule = union(
+	singularExpression,
+	sequence('-', unaryExpression),
+	sequence('!', unaryExpression),
+	sequence('~', unaryExpression),
+	sequence('*', unaryExpression),
+	sequence('&', unaryExpression),
+);
+
+singularExpression.rule = union(
+	sequence(primaryExpression, maybe(componentOrSwizzleSpecifier)),
+);
+
+lhsExpression.rule = union(
+	sequence(coreLhsExpression, maybe(componentOrSwizzleSpecifier)),
+	sequence('*', lhsExpression),
+	sequence('&', lhsExpression),
+);
+
+coreLhsExpression.rule = union(
+	ident,
+	sequence('(', lhsExpression, ')'),
+);
+
+multiplicativeExpression.rule = union(
+	unaryExpression,
+	sequence(multiplicativeExpression, multiplicativeOperator, unaryExpression),
+);
+
+multiplicativeOperator.rule = union(
+	'*',
+	'/',
+	'%',
+);
+
+additiveExpression.rule = union(
+	multiplicativeExpression,
+	sequence(additiveExpression, additiveOperator, multiplicativeExpression),
+);
+
+additiveOperator.rule = union(
+	'+',
+	'-',
+);
+
+shiftExpression.rule = union(
+	additiveExpression,
+	sequence(unaryExpression, SHIFT_LEFT, unaryExpression),
+	sequence(unaryExpression, SHIFT_RIGHT, unaryExpression),
+);
+
+relationalExpression.rule = union(
+	shiftExpression,
+	sequence(shiftExpression, LESS_THAN, shiftExpression),
+	sequence(shiftExpression, GREATER_THAN, shiftExpression),
+	sequence(shiftExpression, LESS_THAN_EQUAL, shiftExpression),
+	sequence(shiftExpression, GREATER_THAN_EQUAL, shiftExpression),
+	sequence(shiftExpression, '==', shiftExpression),
+	sequence(shiftExpression, '!=', shiftExpression),
+);
+
+shortCircuitAndExpression.rule = union(
+	relationalExpression,
+	sequence(shortCircuitAndExpression, '&&', relationalExpression),
+);
+
+shortCircuitOrExpression.rule = union(
+	relationalExpression,
+	sequence(shortCircuitOrExpression, '||', relationalExpression),
+);
+
+binaryOrExpression.rule = union(
+	unaryExpression,
+	sequence(binaryOrExpression, '|', unaryExpression),
+);
+
+binaryAndExpression.rule = union(
+	unaryExpression,
+	sequence(binaryAndExpression, '&', unaryExpression),
+);
+
+binaryXorExpression.rule = union(
+	unaryExpression,
+	sequence(binaryXorExpression, '^', unaryExpression),
+);
+
+bitwiseExpression.rule = union(
+	sequence(binaryAndExpression, '&', unaryExpression),
+	sequence(binaryOrExpression, '|', unaryExpression),
+	sequence(binaryXorExpression, '^', unaryExpression),
+);
+
+expression.rule = union(
+	relationalExpression,
+	sequence(shortCircuitOrExpression, '||', relationalExpression),
+	sequence(shortCircuitAndExpression, '&&', relationalExpression),
+	bitwiseExpression,
+);
+
+compoundStatement.rule = union(
+	sequence(star(attribute), '{', star(statement), '}'),
+);
+
+assignmentStatement.rule = union(
+	sequence(lhsExpression, '=', expression),
+	sequence(lhsExpression, compoundAssignmentOperator, expression),
+	sequence('_', '=', expression),
+);
+
+compoundAssignmentOperator.rule = union(
+	'+=',
+	'-=',
+	'*=',
+	'/=',
+	'%=',
+	'&=',
+	'|=',
+	'^=',
+	SHIFT_RIGHT_ASSIGN,
+	SHIFT_LEFT_ASSIGN,
+);
+
+incrementStatement.rule = union(
+	sequence(lhsExpression, '++'),
+);
+
+decrementStatement.rule = union(
+	sequence(lhsExpression, '--'),
+);
+
+ifStatement.rule = union(
+	sequence(star(attribute), ifClause, star(elseIfClause), maybe(elseClause)),
+);
+
+ifClause.rule = union(
+	sequence('if', expression, compoundStatement),
+);
+
+elseIfClause.rule = union(
+	sequence('else', 'if', expression, compoundStatement),
+);
+
+elseClause.rule = union(
+	sequence('else', compoundStatement),
+);
+
+switchStatement.rule = union(
+	sequence(star(attribute), 'switch', expression, switchBody),
+);
+
+switchBody.rule = union(
+	sequence(star(attribute), '{', switchClause, '}'),
+);
+
+switchClause.rule = union(
+	caseClause,
+	defaultAloneClause,
+);
+
+caseClause.rule = union(
+	sequence('case', caseSelectors, maybe(':'), compoundStatement),
+);
+
+defaultAloneClause.rule = union(
+	sequence('default', maybe(':'), compoundStatement),
+);
+
+caseSelectors.rule = union(
+	sequence(caseSelector, star(sequence(',', caseSelector)), maybe(',')),
+);
+
+caseSelector.rule = union(
+	'default',
+	expression,
+);
+
+loopStatement.rule = union(
+	sequence(star(attribute), 'loop', star(attribute), '{', star(statement), maybe(continuingStatement), '}'),
+);
+
+forStatement.rule = union(
+	sequence(star(attribute), 'for', '(', forHeader, ')', compoundStatement),
+);
+
+forHeader.rule = union(
+	sequence(maybe(forInit), ';', maybe(expression), ';', maybe(forUpdate)),
+);
+
+forInit.rule = union(
+	variableOrValueStatement,
+	variableUpdatingStatement,
+	funcCallStatement,
+);
+
+forUpdate.rule = union(
+	variableUpdatingStatement,
+	funcCallStatement,
+);
+
+whileStatement.rule = union(
+	sequence(star(attribute), 'while', expression, compoundStatement),
+);
+
+breakStatement.rule = union(
+	'break',
+);
+
+breakIfStatement.rule = union(
+	sequence('break', 'if', expression, ';'),
+);
+
+continueStatement.rule = union(
+	'continue',
+);
+
+continuingStatement.rule = union(
+	sequence('continuing', continuingCompoundStatement),
+);
+
+continuingCompoundStatement.rule = union(
+	sequence(star(attribute), '{', star(statement), maybe(breakIfStatement), '}'),
+);
+
+returnStatement.rule = union(
+	sequence('return', maybe(expression)),
+);
+
+funcCallStatement.rule = union(
+	callPhrase,
+);
+
+constAssertStatement.rule = union(
+	sequence('const_assert', expression),
+);
+
+statement.rule = union(
+	';',
+	sequence(returnStatement, ';'),
+	ifStatement,
+	switchStatement,
+	loopStatement,
+	forStatement,
+	whileStatement,
+	sequence(funcCallStatement, ';'),
+	sequence(variableOrValueStatement, ';'),
+	sequence(breakStatement, ';'),
+	sequence(continueStatement, ';'),
+	sequence('discard', ';'),
+	sequence(variableUpdatingStatement, ';'),
+	compoundStatement,
+	sequence(constAssertStatement, ';'),
+);
+
+variableUpdatingStatement.rule = union(
+	assignmentStatement,
+	incrementStatement,
+	decrementStatement,
+);
+
+functionDecl.rule = union(
+	sequence(star(attribute), functionHeader, compoundStatement),
+);
+
+functionHeader.rule = union(
+	sequence('fn', ident, '(', maybe(paramList), ')', maybe(sequence('->', star(attribute), templateElaboratedIdent))),
+);
+
+paramList.rule = union(
+	sequence(param, star(sequence(',', param)), maybe(',')),
+);
+
+param.rule = union(
+	sequence(star(attribute), ident, ':', typeSpecifier),
+);
+
+enableDirective.rule = union(
+	sequence('enable', enableExtensionList, ';'),
+);
+
+enableExtensionList.rule = union(
+	sequence(enableExtensionName, star(sequence(',', enableExtensionName)), maybe(',')),
+);
+
+requiresDirective.rule = union(
+	sequence('requires', softwareExtensionList, ';'),
+);
+
+softwareExtensionList.rule = union(
+	sequence(softwareExtensionName, star(sequence(',', softwareExtensionName)), maybe(',')),
+);
+
+enableExtensionName.rule = union(
+	identPatternToken,
+);
+
+softwareExtensionName.rule = union(
+	identPatternToken,
+);
+
+identPatternToken.rule = union(
+	/([_\p{XID_Start}][\p{XID_Continue}]+)|([\p{XID_Start}])/u,
+);
+
+severityControlName.rule = union(
+	identPatternToken,
+);
+
+swizzleName.rule = union(
+	/[rgba]/,
+	/[rgba][rgba]/,
+	/[rgba][rgba][rgba]/,
+	/[rgba][rgba][rgba][rgba]/,
+	/[xyzw]/,
+	/[xyzw][xyzw]/,
+	/[xyzw][xyzw][xyzw]/,
+	/[xyzw][xyzw][xyzw][xyzw]/,
+);

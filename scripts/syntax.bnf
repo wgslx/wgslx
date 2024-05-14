@@ -389,7 +389,8 @@ compound_statement :
 ;
 
 assignment_statement :
-  lhs_expression ( '=' | compound_assignment_operator ) expression
+  lhs_expression '=' expression
+| lhs_expression compound_assignment_operator expression
 | '_' '=' expression
 ;
 

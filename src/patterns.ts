@@ -142,3 +142,14 @@ const BLANKSPACE = [
     '\u2028', // line separator
     '\u2029', // paragraph separator
 ];
+
+const LINE_BREAK = [
+    '\u000a', // line feed
+    '\u000b', // vertical tab
+    '\u000c', // form feed
+    '\u000d\u000a', // carriage return when followed by line feed
+    '\u000d', // carriage return when not folled by line feed
+    '\u0085', // next line
+    '\u2028', // line sparator
+    '\u2029', // paragraph separator
+];
