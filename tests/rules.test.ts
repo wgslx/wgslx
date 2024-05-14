@@ -226,11 +226,103 @@ describe('rules', () => {
         });
     });
     describe('star', () => {
-        test('matches RegExp', () => {
+        test('matches zero', () => {
+            const context = Context.from('quick brown fox jumps', 'file');
+            const rule = star('slow');
+            const cursor = {
+                segment: 0,
+                start: 0,
+            };
+
+            expect(context.rule(cursor, rule)).toEqual({
+                cursor: {
+                    segment: 0,
+                    start: 0,
+                },
+                tokens: [],
+            });
+        });
+
+        test('matches single positive', () => {
+            const context = Context.from('quick brown fox jumps', 'file');
+            const rule = star('quick');
+            const cursor = {
+                segment: 0,
+                start: 0,
+            };
+
+            expect(context.rule(cursor, rule)).toEqual({
+                cursor: {
+                    segment: 1,
+                    start: 0,
+                },
+                tokens: [
+                    {
+                        tokens: {
+                            text: 'quick',
+                            src: '0:0:file',
+                        },
+                    },
+                ],
+            });
+        });
+
+        test('matches multiple positives', () => {
+            const context = Context.from('quick quick quick jumps', 'file');
+            const rule = star('quick');
+            const cursor = {
+                segment: 0,
+                start: 0,
+            };
+
+            expect(context.rule(cursor, rule)).toEqual({
+                cursor: {
+                    segment: 3,
+                    start: 0,
+                },
+                tokens: [
+                    {
+                        tokens: {
+                            text: 'quick',
+                            src: '0:0:file',
+                        },
+                    },
+                    {
+                        tokens: {
+                            text: 'quick',
+                            src: '0:6:file',
+                        },
+                    },
+                    {
+                        tokens: {
+                            text: 'quick',
+                            src: '0:12:file',
+                        },
+                    },
+                ],
+            });
         });
     });
+
     describe('union', () => {
-        test('matches RegExp', () => {
+        test('matches longest rule', () => {
+            const context = Context.from('foobar', 'file');
+            const rule = union('foo', /fooba/, 'fo', 'bar');
+            const cursor = {
+                segment: 0,
+                start: 0,
+            }
+
+            expect(context.rule(cursor, rule)).toEqual({
+                cursor: {
+                    segment: 0,
+                    start: 5,
+                },
+                tokens: {
+                    text: 'fooba',
+                    src: '0:0:file',
+                },
+            });
         });
     });
 });

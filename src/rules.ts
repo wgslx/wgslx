@@ -97,24 +97,22 @@ export class Context {
     }
 }
 
-type RuleFlex = string | RegExp | Rule;
+type FlexRule = string | RegExp | Rule;
 
-function rulify(rule: RuleFlex): Rule;
-function rulify(rules: RuleFlex[]): Rule[];
-function rulify(ruleOrRules: RuleFlex | RuleFlex[]): Rule | Rule[] {
-    if (Array.isArray(ruleOrRules)) {
-        return ruleOrRules.map(r => rulify(r));
+function rulifyOne(rule: FlexRule): Rule {
+    if (typeof rule === 'string') {
+        return literal(rule);
     }
 
-    if (typeof ruleOrRules === 'string') {
-        return literal(ruleOrRules);
+    if (rule instanceof RegExp) {
+        return regex(rule);
     }
 
-    if (ruleOrRules instanceof RegExp) {
-        return regex(ruleOrRules);
-    }
+    return rule;
+}
 
-    return ruleOrRules;
+function rulifyAll(rules: FlexRule[]): Rule[] {
+    return rules.map(r => rulifyOne(r));
 }
 
 function tokenify(token: TokenMatch): TokenMatch {
@@ -171,7 +169,6 @@ export class SequenceRule implements Rule {
 
     match(cursor: Cursor, context: Context) {
         const matches: RuleMatch[] = [];
-        console.log(this.rules);
         for (const rule of this.rules) {
             const match = context.rule(cursor, rule);
             if (!match) {
@@ -192,8 +189,8 @@ export class SequenceRule implements Rule {
     }
 }
 
-export function sequence(first: RuleFlex, ...rest: RuleFlex[]): Rule {
-    const rules = rulify([first, ...rest]);
+export function sequence(first: FlexRule, ...rest: FlexRule[]): Rule {
+    const rules = rulifyAll([first, ...rest]);
 
     if (rules.length === 0) {
         console.log(first, rest);
@@ -250,11 +247,11 @@ export class UnionRule implements Rule {
     }
 }
 
-export function union(first: RuleFlex, ...rest: RuleFlex[]): Rule {
-    const rules = rulify([first, ...rest]);
+export function union(first: FlexRule, ...rest: FlexRule[]): Rule {
+    const rules = rulifyAll([first, ...rest]);
 
     if (rules.length === 1) {
-        return rules[1];
+        return rules[0];
     }
 
     // const literals: LiteralRule[] = [];
@@ -284,7 +281,7 @@ export class MaybeRule implements Rule {
     }
 }
 
-export function maybe(first: RuleFlex, ...rest: RuleFlex[]): Rule {
+export function maybe(first: FlexRule, ...rest: FlexRule[]): Rule {
     const rule = sequence(first, ...rest);
     return new MaybeRule(rule);
 }
@@ -297,12 +294,13 @@ export class StarRule implements Rule {
         let match = context.rule(cursor, this.rule);
         while (match) {
             matches.push(match);
+            cursor = match.cursor;
             match = context.rule(cursor, this.rule);
         }
 
         return {
-            tokens: matches,
-            cursor: cursor,
+            tokens: matches.map(tokenify),
+            cursor,
         }
     }
 
@@ -311,14 +309,19 @@ export class StarRule implements Rule {
     }
 }
 
-export function star(first: RuleFlex, ...rest: RuleFlex[]): Rule {
+export function star(first: FlexRule, ...rest: FlexRule[]): Rule {
     const rule = sequence(first, ...rest);
     return new StarRule(rule);
 }
 
-class NamedRule implements Rule {
+export class NamedRule implements Rule {
     readonly name: string;
+    private leftRecursiveRest?: Rule;
     private rule?: Rule;
+
+    isLeftRecursive() {
+        return !!this.leftRecursiveRest;
+    }
 
     get(): Rule | null {
         return this.rule ?? null;
@@ -328,6 +331,33 @@ class NamedRule implements Rule {
         if (this.rule) {
             throw new Error(`Duplicate initialization of rule ${this.rule}`);
         }
+
+        // Look for left recursion.
+        if (rule instanceof UnionRule) {
+            const recursive: Rule[] = [];
+            const nonrecursive: Rule[] = [];
+
+            for (const or of rule.rules) {
+                if (or instanceof SequenceRule && or.rules[0] === this) {
+                    // Left recursion detected, remove the recursive element.
+                    const [_, second, ...rest] = or.rules;
+                    recursive.push(sequence(second, ...rest));
+                    continue;
+                }
+                nonrecursive.push(or);
+            }
+
+            if (recursive.length !== 0) {
+                const [f1, ...r1] = recursive;
+                this.leftRecursiveRest = union(f1, ...r1);
+                const [f2, ...r2] = nonrecursive;
+                rule = union(f2, ...r2);
+
+                console.log(`Left recursive rule ${this.name}`, this.leftRecursiveRest, rule);
+
+            }
+        }
+
         this.rule = rule;
     }
 
@@ -336,12 +366,32 @@ class NamedRule implements Rule {
             throw new Error(`Uninitialized rule ${this.name}`);
         }
 
-        console.log(this.name);
-
-        const match = context.rule(cursor, this.rule);
-
+        let match = context.rule(cursor, this.rule);
         if (match) {
             match.rule = this.name;
+        }
+
+        if (this.leftRecursiveRest) {
+            let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
+            while (restMatch) {
+                // Left recursion found.
+                if (!restMatch.tokens) {
+                    throw new Error('Successful left-recursion must emit tokens');
+                }
+
+                const tokens = Array.isArray(restMatch.tokens)
+                    ? [tokenify(match), ...restMatch.tokens]
+                    : [tokenify(match), restMatch.tokens];
+
+                match = {
+                    rule: this.name,
+                    tokens,
+
+                    cursor: restMatch.cursor,
+                }
+
+                restMatch = context.rule(match.cursor, this.leftRecursiveRest);
+            }
         }
 
         return match;
