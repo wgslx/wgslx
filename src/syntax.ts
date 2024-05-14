@@ -1,23 +1,124 @@
 // https://github.com/gpuweb/gpuweb/blob/main/wgsl/syntax.bnf
 
+import { maybe, name, star, union } from "./rules";
 
-const BOOL_LITERAL = [/true/, /false/];
-const INT_DEC_LITERAL = [/0[iu]?/, /[1-9][0-9]*[iu]?/];
-const INT_HEX_LITERAL = [/0[xX][0-9a-fA-F]+[iu]?/];
-
-const FLOAT_DEC_LITERAL = [
-    /0[fh]/,
-    /[1-9][0-9]*[fh]/,
-    /[0-9]*\.[0-9]+([eE][+-]?[0-9]+)?[fh]?/,
-    /[0-9]+\.[0-9]*([eE][+-]?[0-9]+)?[fh]?/,
-    /[0-9]+[eE][+-]?[0-9]+[fh]?/,
-];
-const FLOAT_HEX_LITERAL = [
-    /0[xX][0-9a-fA-F]*\.[0-9a-fA-F]+([pP][+-]?[0-9]+[fh]?)?/,
-    /0[xX][0-9a-fA-F]+\.[0-9a-fA-F]*([pP][+-]?[0-9]+[fh]?)?/,
-    /0[xX][0-9a-fA-F]+[pP][+-]?[0-9]+[fh]?/,
-];
-
-const IDENT_PATTERN_TOKEN = [
-    /([_\p{XID_Start}][\p{XID_Continue}]+)|([\p{XID_Start}])/u,
-]
+export const translationUnit = name('translation_unit');
+export const globalDirective = name('global_directive');
+export const globalDecl = name('global_decl');
+export const boolLiteral = name('bool_literal');
+export const intLiteral = name('int_literal');
+export const decimalIntLiteral = name('decimal_int_literal');
+export const hexIntLiteral = name('hex_int_literal');
+export const floatLiteral = name('float_literal');
+export const decimalFloatLiteral = name('decimal_float_literal');
+export const hexFloatLiteral = name('hex_float_literal');
+export const diagnosticDirective = name('diagnostic_directive');
+export const literal = name('literal');
+export const ident = name('ident');
+export const memberIdent = name('member_ident');
+export const diagnosticNameToken = name('diagnostic_name_token');
+export const diagnosticRuleName = name('diagnostic_rule_name');
+export const templateList = name('template_list');
+export const templateArgCommaList = name('template_arg_comma_list');
+export const templateArgExpression = name('template_arg_expression');
+export const alignAttr = name('align_attr');
+export const bindingAttr = name('binding_attr');
+export const builtinAttr = name('builtin_attr');
+export const builtinValueName = name('builtin_value_name');
+export const constAttr = name('const_attr');
+export const diagnosticAttr = name('diagnostic_attr');
+export const groupAttr = name('group_attr');
+export const idAttr = name('id_attr');
+export const interpolateAttr = name('interpolate_attr');
+export const interpolateTypeName = name('interpolate_type_name');
+export const interpolateSamplingName = name('interpolate_sampling_name');
+export const invariantAttr = name('invariant_attr');
+export const locationAttr = name('location_attr');
+export const mustUseAttr = name('must_use_attr');
+export const sizeAttr = name('size_attr');
+export const workgroupSizeAttr = name('workgroup_size_attr');
+export const vertexAttr = name('vertex_attr');
+export const fragmentAttr = name('fragment_attr');
+export const computeAttr = name('compute_attr');
+export const attribute = name('attribute');
+export const diagnosticControl = name('diagnostic_control');
+export const structDecl = name('struct_decl');
+export const structBodyDecl = name('struct_body_decl');
+export const structMember = name('struct_member');
+export const typeAliasDecl = name('type_alias_decl');
+export const typeSpecifier = name('type_specifier');
+export const templateElaboratedIdent = name('template_elaborated_ident');
+export const variableOrValueStatement = name('variable_or_value_statement');
+export const variableDecl = name('variable_decl');
+export const optionallyTypedIdent = name('optionally_typed_ident');
+export const globalVariableDecl = name('global_variable_decl');
+export const globalValueDecl = name('global_value_decl');
+export const primaryExpression = name('primary_expression');
+export const callExpression = name('call_expression');
+export const callPhrase = name('call_phrase');
+export const parenExpression = name('paren_expression');
+export const argumentExpressionList = name('argument_expression_list');
+export const expressionCommaList = name('expression_comma_list');
+export const componentOrSwizzleSpecifier = name('component_or_swizzle_specifier');
+export const unaryExpression = name('unary_expression');
+export const singularExpression = name('singular_expression');
+export const lhsExpression = name('lhs_expression');
+export const coreLhsExpression = name('core_lhs_expression');
+export const multiplicativeExpression = name('multiplicative_expression');
+export const multiplicativeOperator = name('multiplicative_operator');
+export const additiveExpression = name('additive_expression');
+export const additiveOperator = name('additive_operator');
+export const shiftExpression = name('shift_expression');
+export const relationalExpression = name('relational_expression');
+export const shortCircuitAndExpression = name('short_circuit_and_expression');
+export const shortCircuitOrExpression = name('short_circuit_or_expression');
+export const binaryOrExpression = name('binary_or_expression');
+export const binaryAndExpression = name('binary_and_expression');
+export const binaryXorExpression = name('binary_xor_expression');
+export const bitwiseExpression = name('bitwise_expression');
+export const expression = name('expression');
+export const compoundStatement = name('compound_statement');
+export const assignmentStatement = name('assignment_statement');
+export const compoundAssignmentOperator = name('compound_assignment_operator');
+export const incrementStatement = name('increment_statement');
+export const decrementStatement = name('decrement_statement');
+export const ifStatement = name('if_statement');
+export const ifClause = name('if_clause');
+export const elseIfClause = name('else_if_clause');
+export const elseClause = name('else_clause');
+export const switchStatement = name('switch_statement');
+export const switchBody = name('switch_body');
+export const switchClause = name('switch_clause');
+export const caseClause = name('case_clause');
+export const defaultAloneClause = name('default_alone_clause');
+export const caseSelectors = name('case_selectors');
+export const caseSelector = name('case_selector');
+export const loopStatement = name('loop_statement');
+export const forStatement = name('for_statement');
+export const forHeader = name('for_header');
+export const forInit = name('for_init');
+export const forUpdate = name('for_update');
+export const whileStatement = name('while_statement');
+export const breakStatement = name('break_statement');
+export const breakIfStatement = name('break_if_statement');
+export const continueStatement = name('continue_statement');
+export const continuingStatement = name('continuing_statement');
+export const continuingCompoundStatement = name('continuing_compound_statement');
+export const returnStatement = name('return_statement');
+export const funcCallStatement = name('func_call_statement');
+export const constAssertStatement = name('const_assert_statement');
+export const statement = name('statement');
+export const variableUpdatingStatement = name('variable_updating_statement');
+export const functionDecl = name('function_decl');
+export const functionHeader = name('function_header');
+export const paramList = name('param_list');
+export const param = name('param');
+export const enableDirective = name('enable_directive');
+export const enableExtensionList = name('enable_extension_list');
+export const requiresDirective = name('requires_directive');
+export const softwareExtensionList = name('software_extension_list');
+export const enableExtensionName = name('enable_extension_name');
+export const softwareExtensionName = name('software_extension_name');
+export const identPatternToken = name('ident_pattern_token');
+export const severityControlName = name('severity_control_name');
+export const swizzleName = name('swizzle_name');

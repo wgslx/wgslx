@@ -24,9 +24,15 @@ export interface RuleMatch extends TokenMatch {
 }
 
 export interface RuleExec {
-    name?: string;
     match: (cursor: Cursor, context: Context) => (RuleMatch | null);
 }
+
+export interface NamedRuleExec extends RuleExec {
+    readonly name: string;
+    rule?: RuleExec;
+    match: (cursor: Cursor, context: Context) => (RuleMatch | null);
+}
+
 
 /** Context for rule token matching. */
 export class Context {
@@ -100,18 +106,22 @@ export class Context {
 
 type RuleFlex = string | RegExp | RuleExec;
 
-function rulify(rules: RuleFlex[]): RuleExec[] {
-    return rules.map(r => {
-        if (typeof r === 'string') {
-            return literal(r);
-        }
+function rulify(rule: RuleFlex): RuleExec;
+function rulify(rules: RuleFlex[]): RuleExec[];
+function rulify(ruleOrRules: RuleFlex | RuleFlex[]): RuleExec | RuleExec[] {
+    if (Array.isArray(ruleOrRules)) {
+        return ruleOrRules.map(r => rulify(r));
+    }
 
-        if (r instanceof RegExp) {
-            return regex(r);
-        }
+    if (typeof ruleOrRules === 'string') {
+        return literal(ruleOrRules);
+    }
 
-        return r;
-    });
+    if (ruleOrRules instanceof RegExp) {
+        return regex(ruleOrRules);
+    }
+
+    return ruleOrRules;
 }
 
 function tokenify(token: TokenMatch): TokenMatch {
@@ -125,20 +135,6 @@ function tokenify(token: TokenMatch): TokenMatch {
     }
 
     return t;
-}
-
-export function named(name: string, rule: RuleExec): RuleExec {
-    return {
-        match: (cursor: Cursor, context: Context) => {
-            const match = context.rule(cursor, rule);
-
-            if (match) {
-                match.rule = name;
-            }
-
-            return match;
-        },
-    };
 }
 
 export function literal(...text: string[]): RuleExec {
@@ -167,8 +163,13 @@ export function regex(...regex: RegExp[]): RuleExec {
     return rule;
 }
 
-export function sequence(...rulesRegexOrLiterals: RuleFlex[]): RuleExec {
-    const rules = rulify(rulesRegexOrLiterals);
+export function sequence(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
+    if (rest.length === 0) {
+        return rulify(first);
+    }
+
+    const rules = rulify([first, ...rest]);
+
     return {
         match: (cursor: Cursor, context: Context) => {
             const matches: RuleMatch[] = [];
@@ -189,8 +190,62 @@ export function sequence(...rulesRegexOrLiterals: RuleFlex[]): RuleExec {
     }
 }
 
-export function union(...rulesRegexOrLiterals: RuleFlex[]): RuleExec {
-    const rules = rulify(rulesRegexOrLiterals);
+class NamedRuleExecImpl implements NamedRuleExec {
+    readonly name: string;
+    rule?: RuleExec;
+    match(cursor: Cursor, context: Context): RuleMatch {
+        if (!this.rule) {
+            throw new Error(`Uninitialized rule ${this.name}`);
+        }
+
+        const match = context.rule(cursor, this.rule);
+
+        if (match) {
+            match.rule = this.name;
+        }
+
+        return match;
+    }
+
+    constructor(name: string) {
+        this.name = name;
+    }
+}
+
+const registry = new Map<string, NamedRuleExec>();
+export function name(name: string): NamedRuleExec {
+    const rule = new NamedRuleExecImpl(name);
+
+    if (registry.has(name)) {
+        throw new Error(`Duplicate named rule ${rule}`);
+    }
+
+    return rule;
+}
+
+export function rule(name: string): NamedRuleExec {
+    const rule = registry.get(name);
+
+    if (!rule) {
+        throw new Error(`Duplicate named rule ${rule}`);
+    }
+
+    return rule;
+}
+
+export function union(first: RuleFlex | RuleFlex[], ...rest: (RuleFlex | RuleFlex[])[]): RuleExec {
+    const rules = [first, ...rest].map(r => {
+        if (Array.isArray(r)) {
+            const [first, ...rest] = r;
+            return sequence(first, ...rest);
+        }
+
+        return rulify(r);
+    });
+
+    if (rules.length === 1) {
+        return rules[1];
+    }
 
     return {
         match: (cursor: Cursor, context: Context) => {
@@ -231,10 +286,9 @@ export function union(...rulesRegexOrLiterals: RuleFlex[]): RuleExec {
 }
 
 export function maybe(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
-    const rules = rulify([first, ...rest]);
-    const rule = rules.length > 1
-        ? sequence(...rules)
-        : rules[0];
+    const rule = rest.length
+        ? sequence(first, ...rest)
+        : rulify(first);
 
     return {
         match: (cursor: Cursor, context: Context) => {
@@ -252,10 +306,9 @@ export function maybe(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
 }
 
 export function star(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
-    const rules = rulify([first, ...rest]);
-    const rule = rules.length > 1
-        ? sequence(...rules)
-        : rules[0];
+    const rule = rest.length
+        ? sequence(first, ...rest)
+        : rulify(first);
 
     return {
         match: (cursor: Cursor, context: Context) => {

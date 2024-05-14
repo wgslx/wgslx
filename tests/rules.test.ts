@@ -1,4 +1,4 @@
-import { Context, RuleExec, named, literal, regex, union, sequence, maybe, star } from '../src/rules';
+import { Context, RuleExec, name, literal, regex, union, sequence, maybe, star } from '../src/rules';
 import { Cursor } from '../src/sequence';
 
 describe('rules', () => {
