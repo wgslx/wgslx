@@ -198,6 +198,8 @@ class NamedRuleExecImpl implements NamedRuleExec {
             throw new Error(`Uninitialized rule ${this.name}`);
         }
 
+        console.log(this.name);
+
         const match = context.rule(cursor, this.rule);
 
         if (match) {
@@ -233,19 +235,12 @@ export function rule(name: string): NamedRuleExec {
     return rule;
 }
 
-export function union(first: RuleFlex | RuleFlex[], ...rest: (RuleFlex | RuleFlex[])[]): RuleExec {
-    const rules = [first, ...rest].map(r => {
-        if (Array.isArray(r)) {
-            const [first, ...rest] = r;
-            return sequence(first, ...rest);
-        }
-
-        return rulify(r);
-    });
-
-    if (rules.length === 1) {
-        return rules[1];
+export function union(first: RuleFlex, ...rest: RuleFlex[]): RuleExec {
+    if (rest.length === 0) {
+        return rulify(first);
     }
+
+    const rules = rulify([first, ...rest]);
 
     return {
         match: (cursor: Cursor, context: Context) => {

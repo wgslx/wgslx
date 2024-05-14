@@ -26,6 +26,10 @@ export interface Cursor {
     readonly start: number;
 }
 
+export function Cursor(segment: number, start = 0): Cursor {
+    return { segment, start }
+}
+
 /** Match in a code sequence containing the match and the advanced cursor. */
 export interface TextMatch {
     /** The text of the match. */
