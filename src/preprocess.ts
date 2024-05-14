@@ -42,6 +42,10 @@ export function preprocess(text: string) {
     return text;
 }
 
+export function discoverComments(text: string) {
+
+}
+
 export function discoverTemplates(text: string) {
     const discoveredTemplateLists: TemplateList[] = [];
     const pendingCandidatesStack: UnclosedCandidate[] = [];
@@ -63,7 +67,7 @@ export function discoverTemplates(text: string) {
                 }
             }
             matched = false;
-        } while (matched === true);
+        } while (matched === true && matchers.length > 1);
 
         return (startPosition === currentPosition)
             ? undefined

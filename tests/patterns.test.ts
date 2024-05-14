@@ -1,7 +1,6 @@
 import { createRegExpTextMatcher, createStringTextMatcher, matchBlockComment, matchIdentPatternToken } from '../src/patterns';
 
 describe('patterns', () => {
-
     describe('createRegExpTextMatcher', () => {
         test('matches RegExp', () => {
             const matcher = createRegExpTextMatcher(/foo/);
