@@ -122,7 +122,7 @@ export class Sequence {
             for (const match of whitespaceMatches) {
                 // Starts with whitespace, should only be at
                 if (match.index === i) {
-                    i += match.length;
+                    i += match[0].length;
                     continue;
                 }
 

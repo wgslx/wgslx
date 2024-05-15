@@ -2,7 +2,7 @@ import { Context, flatten, stringify } from '../src/rules';
 import { Cursor } from '../src/sequence';
 import { expression, statement, variableDecl, structDecl, functionDecl } from '../src/tokens';
 
-describe('syntax', () => {
+describe('tokens', () => {
     describe('expression', () => {
         test('additive, indexing, swizzle', () => {
             const context = Context.from('a[4] + b.xyz', 'file');
@@ -48,7 +48,7 @@ describe('syntax', () => {
     });
 
     describe('functionDecl', () => {
-        test('segments multiple lines', () => {
+        test('function declaration', () => {
             const context = Context.from('fn average(a : f32, b : f32) -> f32 { return (a + b) / 2; }', 'file');
             const cursor = Cursor(0);
 
@@ -56,5 +56,40 @@ describe('syntax', () => {
             expect(match.cursor).toEqual(Cursor(17));
             expect(stringify(match)).toEqual('fn average ( a : f32 , b : f32 ) -> f32 { return ( a + b ) / 2 ; }');
         });
+
+        test('vertex declaration', () => {
+            const text =
+                `
+                @vertex
+                fn main(@builtin(vertex_index) VertexIndex : u32)
+                    -> @builtin(position) vec4f {
+
+                    var pos = array<vec2f, 3>(
+                        vec2(0.0, 0.5),
+                        vec2(-0.5, -0.5),
+                        vec2(0.5, -0.5)
+                    );
+
+                    return vec4f(pos[VertexIndex], 0.0, 1.0);
+                }
+                `;
+
+            const context = Context.from(text, 'file');
+            const cursor = Cursor(0);
+
+            const match = functionDecl.match(cursor, context);
+            expect(stringify(match)).toEqual('@ vertex fn main ( @ builtin ( vertex_index ) VertexIndex : u32 ) -> @ builtin ( position ) vec4f { var pos = array ❬ vec2f , 3 ❭ ( vec2 ( 0.0 , 0.5 ) , vec2 ( - 0.5 , - 0.5 ) , vec2 ( 0.5 , - 0.5 ) ) ; return vec4f ( pos [ VertexIndex ] , 0.0 , 1.0 ) ; }');
+        });
     });
+
+    // describe('translationUnit', () => {
+    //     test('translation unit', () => {
+    //         const context = Context.from('fn average(a : f32, b : f32) -> f32 { return (a + b) / 2; }', 'file');
+    //         const cursor = Cursor(0);
+
+    //         const match = functionDecl.match(cursor, context);
+    //         expect(match.cursor).toEqual(Cursor(17));
+    //         expect(stringify(match)).toEqual('fn average ( a : f32 , b : f32 ) -> f32 { return ( a + b ) / 2 ; }');
+    //     });
+    // });
 });

@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path'
 
 const inputPath = path.resolve(__dirname, './syntax.bnf');
-const outputPath = path.resolve(__dirname, '../src/syntax.ts');
+const outputPath = path.resolve(__dirname, '../src/tokens.ts');
 
 const syntax = fs.readFileSync(inputPath, { encoding: 'utf8' });
 

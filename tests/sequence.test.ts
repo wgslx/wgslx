@@ -18,6 +18,18 @@ describe('sequence', () => {
                 segment('f', 1, 5, 'file'),
             ]);
         });
+
+        test('segments multiple lines', () => {
+            const sequence = Sequence.from('\n    a b c \n d e f', 'file');
+            expect(sequence.segments).toEqual([
+                segment('a', 1, 4, 'file'),
+                segment('b', 1, 6, 'file'),
+                segment('c', 1, 8, 'file'),
+                segment('d', 2, 1, 'file'),
+                segment('e', 2, 3, 'file'),
+                segment('f', 2, 5, 'file'),
+            ]);
+        });
     });
 
     describe('match', () => {
