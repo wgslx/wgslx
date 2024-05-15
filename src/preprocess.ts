@@ -176,7 +176,7 @@ export function discoverTemplates(text: string) {
             continue;
         }
 
-        throw new Error(`Unexpected position ${currentPosition}, ${text.substring(currentPosition)}`);
+        currentPosition += 1;
     }
 
     return discoveredTemplateLists;

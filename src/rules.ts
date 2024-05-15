@@ -15,7 +15,7 @@ export interface TokenMatch {
     tokens?: Token | TokenMatch | Array<Token | TokenMatch>;
 
     // Rule name
-    rule?: string;
+    rule?: string[];
 }
 
 export interface RuleMatch extends TokenMatch {
@@ -24,7 +24,7 @@ export interface RuleMatch extends TokenMatch {
 }
 
 export interface Rule {
-    match: (cursor: Cursor, context: Context) => (RuleMatch | null);
+    match(cursor: Cursor, context: Context): RuleMatch | null;
 }
 
 /** Context for rule token matching. */
@@ -117,13 +117,10 @@ function rulifyAll(rules: FlexRule[]): Rule[] {
 
 function tokenify(token: TokenMatch): TokenMatch {
     const { tokens, rule } = token;
-    const t: TokenMatch = {
-        tokens,
-    };
+    const t: TokenMatch = {};
 
-    if (rule) {
-        t.rule = rule;
-    }
+    if (tokens) t.tokens = tokens;
+    if (rule) { t.rule = rule; }
 
     return t;
 }
@@ -179,7 +176,7 @@ export class SequenceRule implements Rule {
         }
 
         return {
-            tokens: matches.map(tokenify),
+            tokens: matches.map(tokenify).filter(t => t.tokens || t.rule),
             cursor: cursor,
         }
     }
@@ -271,7 +268,6 @@ export class MaybeRule implements Rule {
         }
 
         return {
-            tokens: undefined,
             cursor: cursor,
         }
     }
@@ -352,9 +348,6 @@ export class NamedRule implements Rule {
                 this.leftRecursiveRest = union(f1, ...r1);
                 const [f2, ...r2] = nonrecursive;
                 rule = union(f2, ...r2);
-
-                console.log(`Left recursive rule ${this.name}`, this.leftRecursiveRest, rule);
-
             }
         }
 
@@ -367,9 +360,12 @@ export class NamedRule implements Rule {
         }
 
         let match = context.rule(cursor, this.rule);
-        if (match) {
-            match.rule = this.name;
+        if (!match) {
+            return null;
         }
+
+        match.rule = match.rule ?? [];
+        match.rule.push(this.name);
 
         if (this.leftRecursiveRest) {
             let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
@@ -384,7 +380,7 @@ export class NamedRule implements Rule {
                     : [tokenify(match), restMatch.tokens];
 
                 match = {
-                    rule: this.name,
+                    rule: [this.name],
                     tokens,
 
                     cursor: restMatch.cursor,
@@ -421,4 +417,41 @@ export function rule(name: string): NamedRule {
     }
 
     return rule;
+}
+
+export type TokenTree = null | string | Array<TokenTree>;
+
+export function flatten(match: TokenMatch | Token): TokenTree {
+    if ('text' in match) {
+        return match.text;
+    }
+
+    if (Array.isArray(match.tokens)) {
+        return match.tokens.map(m => flatten(m)).filter(t => t);
+    }
+
+    if (!match.tokens) {
+        return null;
+    }
+
+    return flatten(match.tokens);
+}
+
+export function stringify(match: TokenMatch | Token): string {
+    if ('text' in match) {
+        return match.text;
+    }
+
+    if (Array.isArray(match.tokens)) {
+        return match.tokens
+            .map(m => stringify(m))
+            .filter(t => t)
+            .join(' ');
+    }
+
+    if (!match.tokens) {
+        return null;
+    }
+
+    return stringify(match.tokens);
 }

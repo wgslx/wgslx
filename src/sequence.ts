@@ -1,4 +1,5 @@
 import { TextMatcher } from "./patterns";
+import { preprocess } from "./preprocess";
 
 /** Global match regex for all blankspace. */
 const BLANKSPACE_GLOBAL_REGEX = /[\u0020\u0009\u000a\u000b\u000c\u000d\u0085\u200e\u200f\u2028\u2029]+/g;
@@ -58,12 +59,20 @@ export class Sequence {
     readonly segments: Segment[];
 
     stringify(cursor: Cursor): string {
+        if (cursor.segment >= this.segments.length) {
+            return 'eof';
+        }
+
         const segment = this.segments[cursor.segment];
         return `${segment.line}:${segment.column + cursor.start}:${segment.file}`;
     }
 
     /** Tries to match the text matcher at the given position. */
     match(cursor: Cursor, matcher: TextMatcher): TextMatch | null {
+        if (cursor.segment >= this.segments.length) {
+            return null;
+        }
+
         const segment = this.segments[cursor.segment];
         const match = matcher(segment.text, cursor.start);
 
@@ -100,6 +109,7 @@ export class Sequence {
 
     /** Creates a sequence from the specified file text and file name. */
     static from(text: string, file: string): Sequence {
+        text = preprocess(text);
         // Split by new lines.
         const lines = text.split(LINE_BREAK_REGEX);
         const segments: Segment[] = [];
