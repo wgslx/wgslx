@@ -1,6 +1,6 @@
 import { Context, flatten, stringify } from '../src/rules';
 import { Cursor } from '../src/sequence';
-import { expression, statement, variableDecl, structDecl, functionDecl } from '../src/syntax';
+import { expression, statement, variableDecl, structDecl, functionDecl } from '../src/tokens';
 
 describe('syntax', () => {
     describe('expression', () => {
