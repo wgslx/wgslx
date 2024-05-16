@@ -14,7 +14,9 @@
         "types": [
             "jest",
             "node"
-        ]
+        ],
+        "strictNullChecks": true,
+        "alwaysStrict": true
     },
     "formatterOptions": {
         "baseIndentSize": 0,

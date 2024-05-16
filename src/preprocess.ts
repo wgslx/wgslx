@@ -52,7 +52,7 @@ export function discoverTemplates(text: string) {
     let currentPosition = 0;
     let nestingDepth = 0;
 
-    function matchAdvance(...matchers: Array<(text: string, position: number) => string>) {
+    function matchAdvance(...matchers: Array<(text: string, position: number) => string | undefined>) {
         const startPosition = currentPosition;
         let matched = false;
 
@@ -121,10 +121,10 @@ export function discoverTemplates(text: string) {
         }
 
         if (startsWithAdvance('>')) {
-            if (pendingCandidatesStack.length &&
+            if (pendingCandidatesStack.length > 0 &&
                 pendingCandidatesStack[pendingCandidatesStack.length - 1].depth === nestingDepth) {
 
-                const pending = pendingCandidatesStack.pop();
+                const pending = pendingCandidatesStack.pop()!; // Asserted due to array length check.
                 discoveredTemplateLists.push({
                     startPosition: pending.position,
                     endPosition: currentPosition - 1,

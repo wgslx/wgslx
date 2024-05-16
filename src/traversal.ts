@@ -21,8 +21,14 @@ export function assertType(token: Token, symbol: FlexSymbol) {
 }
 
 export function ofType(...symbols: FlexSymbol[]) {
-    const name = symbolNames(symbols);
-    return (token: Token) => token.symbols && name.some(n => token.symbols.includes(n));
+    const names = symbolNames(symbols);
+    return (token: Token): boolean => {
+        if (token.symbols) {
+            const symbols = token.symbols;
+            return names.some(n => symbols.includes(n));
+        }
+        return false;
+    };
 }
 
 export function childrenOfType(token: Token, symbols: FlexSymbol[]): Token[] {
@@ -30,11 +36,23 @@ export function childrenOfType(token: Token, symbols: FlexSymbol[]): Token[] {
         return [];
     }
 
-    const names = symbolNames(symbols);
-    return token.children.filter(t => t.symbols && names.some(n => t.symbols.includes(n)));
+    return token.children.filter(ofType(...symbols));
 }
 
-type PreorderCallback = (token: Token, ancestors: Token[], index: number) => void | boolean | PostorderCallback;
+interface PreorderResponse {
+    /** Whether to continue */
+    continue?: boolean,
+
+    /** Override set of children to traverse. */
+    children?: null | Token | Token[];
+
+    /**
+     * Cleanup callback to call after children have been traversed, but before
+     * the afterCallback is called.
+     */
+    cleanupCallback?: PostorderCallback,
+}
+type PreorderCallback = (token: Token, ancestors: Token[], index: number) => PreorderResponse | undefined | void;
 type PostorderCallback = (token: Token, ancestors: Token[], index: number) => void;
 interface TraversalOptions {
     predicate?: (t: Token) => boolean;
@@ -45,26 +63,36 @@ interface TraversalOptions {
 function _traverse(tokens: Token[], ancestors: Token[], options: TraversalOptions) {
     for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
-        const match = options?.predicate(token) ?? true;
-        let cleanupCallback: PostorderCallback | undefined = undefined;
+        const match = options.predicate?.(token) ?? true;
+        let preorderResponse: PreorderResponse | undefined = undefined;
 
         if (match && options.preorderCallback) {
             const result = options.preorderCallback(token, ancestors, i);
-            if (typeof result === 'function') {
-                cleanupCallback = result;
-            }
+            if (result) {
+                if (result.continue === false) {
+                    result.cleanupCallback?.(token, ancestors, i);
+                    continue;
+                }
 
-            if (result === false) {
-                continue;
+                preorderResponse = result;
             }
         }
 
-        if (token.children) {
+        if (preorderResponse?.children !== undefined) {
+            if (preorderResponse.children !== null) {
+                _traverse(
+                    Array.isArray(preorderResponse.children)
+                        ? preorderResponse.children
+                        : [preorderResponse.children],
+                    [...ancestors, token],
+                    options);
+            }
+        } else if (token.children) {
             _traverse(token.children, [...ancestors, token], options);
         }
 
-        if (cleanupCallback) {
-            cleanupCallback(token, ancestors, i);
+        if (preorderResponse?.cleanupCallback) {
+            preorderResponse.cleanupCallback(token, ancestors, i);
         }
 
         if (match && options.postorderCallback) {

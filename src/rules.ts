@@ -4,6 +4,7 @@ import { inspect } from 'util';
 import { TextMatcher, createRegExpTextMatcher, createStringTextMatcher } from "./patterns";
 import { Cursor, Sequence } from "./sequence";
 import { Token } from "./token";
+import { isValued } from './util';
 
 export interface RuleMatch {
     token?: Token;
@@ -14,7 +15,7 @@ export interface RuleMatch {
 
 export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[]): RuleMatch {
     if (Array.isArray(token)) {
-        token = Token.group(token.map(r => r.token).filter(t => t));
+        token = Token.group(token.map(r => r.token).filter(isValued));
     }
 
     return { token, cursor };
@@ -349,11 +350,21 @@ export class SymbolRule implements Rule {
             return null;
         }
 
+        if (!match.token) {
+            console.error('Left recursive match should have token.');
+            return match;
+        }
+
         Token.symbol(match.token, this.symbol);
 
         if (this.leftRecursiveRest) {
             let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
             while (restMatch) {
+                if (!restMatch.token) {
+                    console.error('Left recursive rest-match should have token.');
+                    break;
+                }
+
                 // Left recursion found.
                 if (!restMatch.token.children && !restMatch.token.text) {
                     throw new Error('Successful left-recursion must emit tokens');
@@ -361,8 +372,8 @@ export class SymbolRule implements Rule {
 
                 match = {
                     token: restMatch.token.children
-                        ? Token.group([match.token, ...restMatch.token.children], this.symbol)
-                        : Token.group([match.token, restMatch.token], this.symbol),
+                        ? Token.group([match.token!, ...restMatch.token.children], this.symbol)
+                        : Token.group([match.token!, restMatch.token], this.symbol),
                     cursor: restMatch.cursor,
                 };
 

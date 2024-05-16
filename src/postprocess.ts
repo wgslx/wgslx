@@ -1,5 +1,7 @@
 
+import { compoundStatement, functionDecl, translationUnit } from "./syntax";
 import { Token } from "./token";
+import { assertType, ofType, traverse } from "./traversal";
 
 
 // mark scopes.
@@ -8,8 +10,28 @@ import { Token } from "./token";
 
 // minify identifiers.
 
-export function minify(token: Token) {
 
+/**
+ * Two declarations in the same WGSL source program must not simultaneously:
+ *  - introduce the same identifier name, and
+ *  - have the same end-of-scope.
+ * @param token 
+ */
+export function minify(token: Token) {
+    assertType(token, translationUnit);
+    traverse(token, {
+        predicate: ofType(
+            // Scope changing.
+            functionDecl,
+            compoundStatement,
+
+
+            // Declarations.
+        ),
+        preorderCallback: (token: Token) => {
+
+        },
+    });
     // mark scopes
 
     // global
@@ -17,4 +39,7 @@ export function minify(token: Token) {
     // compound_statement
 
     // for
+
+
+
 }
