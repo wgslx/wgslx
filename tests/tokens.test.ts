@@ -1,4 +1,4 @@
-import { Context, flatten, stringify } from '../src/rules';
+import { Context, stringify } from '../src/rules';
 import { Cursor } from '../src/sequence';
 import { expression, statement, variableDecl, structDecl, functionDecl } from '../src/tokens';
 

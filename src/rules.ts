@@ -2,25 +2,21 @@
 
 import { TextMatcher, createRegExpTextMatcher, createStringTextMatcher } from "./patterns";
 import { Cursor, Sequence } from "./sequence";
+import { Token } from "./token";
 
-export interface Token {
-    text: string;
+export interface RuleMatch {
+    token?: Token;
 
-    /** The file that the token originates from. */
-    src: string;
-}
-
-export interface TokenMatch {
-    // Tokens
-    tokens?: Token | TokenMatch | Array<Token | TokenMatch>;
-
-    // Rule name
-    rule?: string[];
-}
-
-export interface RuleMatch extends TokenMatch {
     // Next cursor after the match.
     cursor: Cursor;
+}
+
+export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[]): RuleMatch {
+    if (Array.isArray(token)) {
+        token = Token.group(token.map(r => r.token).filter(t => t));
+    }
+
+    return { token, cursor };
 }
 
 export interface Rule {
@@ -41,15 +37,7 @@ export class Context {
             return null;
         }
 
-        const segment = this.sequence.segments[textMatch.segment];
-        return {
-            tokens: {
-                text: textMatch.text,
-                src: cursorKey,
-            },
-
-            cursor: textMatch.cursor,
-        }
+        return ruleMatch(textMatch.cursor, Token.text(textMatch.text, cursorKey));
     }
 
     rule(cursor: Cursor, rule: Rule): RuleMatch | null {
@@ -115,16 +103,6 @@ function rulifyAll(rules: FlexRule[]): Rule[] {
     return rules.map(r => rulifyOne(r));
 }
 
-function tokenify(token: TokenMatch): TokenMatch {
-    const { tokens, rule } = token;
-    const t: TokenMatch = {};
-
-    if (tokens) t.tokens = tokens;
-    if (rule) { t.rule = rule; }
-
-    return t;
-}
-
 export class LiteralRule implements Rule {
     readonly matcher: TextMatcher;
     readonly literals: string[];
@@ -175,10 +153,7 @@ export class SequenceRule implements Rule {
             cursor = match.cursor;
         }
 
-        return {
-            tokens: matches.map(tokenify).filter(t => t.tokens || t.rule),
-            cursor: cursor,
-        }
+        return ruleMatch(cursor, matches);
     }
 
     constructor(rules: Rule[]) {
@@ -294,10 +269,7 @@ export class StarRule implements Rule {
             match = context.rule(cursor, this.rule);
         }
 
-        return {
-            tokens: matches.map(tokenify),
-            cursor,
-        }
+        return ruleMatch(cursor, matches);
     }
 
     constructor(rule: Rule) {
@@ -364,27 +336,22 @@ export class NamedRule implements Rule {
             return null;
         }
 
-        match.rule = match.rule ?? [];
-        match.rule.push(this.name);
+        Token.symbol(match.token, this.name);
 
         if (this.leftRecursiveRest) {
             let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
             while (restMatch) {
                 // Left recursion found.
-                if (!restMatch.tokens) {
+                if (!restMatch.token.children && !restMatch.token.text) {
                     throw new Error('Successful left-recursion must emit tokens');
                 }
 
-                const tokens = Array.isArray(restMatch.tokens)
-                    ? [tokenify(match), ...restMatch.tokens]
-                    : [tokenify(match), restMatch.tokens];
-
                 match = {
-                    rule: [this.name],
-                    tokens,
-
+                    token: restMatch.token.children
+                        ? Token.group([match.token, ...restMatch.token.children], this.name)
+                        : Token.group([match.token, restMatch.token], this.name),
                     cursor: restMatch.cursor,
-                }
+                };
 
                 restMatch = context.rule(match.cursor, this.leftRecursiveRest);
             }
@@ -421,37 +388,17 @@ export function rule(name: string): NamedRule {
 
 export type TokenTree = null | string | Array<TokenTree>;
 
-export function flatten(match: TokenMatch | Token): TokenTree {
-    if ('text' in match) {
-        return match.text;
+export function stringify(match: Token | RuleMatch): string {
+    if ('cursor' in match) {
+        match = match.token;
     }
 
-    if (Array.isArray(match.tokens)) {
-        return match.tokens.map(m => flatten(m)).filter(t => t);
-    }
-
-    if (!match.tokens) {
-        return null;
-    }
-
-    return flatten(match.tokens);
-}
-
-export function stringify(match: TokenMatch | Token): string {
-    if ('text' in match) {
-        return match.text;
-    }
-
-    if (Array.isArray(match.tokens)) {
-        return match.tokens
+    if (match.children) {
+        return match.children
             .map(m => stringify(m))
             .filter(t => t)
             .join(' ');
     }
 
-    if (!match.tokens) {
-        return null;
-    }
-
-    return stringify(match.tokens);
+    return match.text;
 }
