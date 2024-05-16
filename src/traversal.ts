@@ -14,6 +14,12 @@ function symbolNames(symbols: FlexSymbol[]): string[] {
     return symbols.map(s => symbolName(s));
 }
 
+export function assertType(token: Token, symbol: FlexSymbol) {
+    if (!token.hasSymbol(symbolName(symbol))) {
+        throw new Error('Type');
+    }
+}
+
 export function ofType(...symbols: FlexSymbol[]) {
     const name = symbolNames(symbols);
     return (token: Token) => token.symbols && name.some(n => token.symbols.includes(n));
@@ -67,10 +73,14 @@ function _traverse(tokens: Token[], ancestors: Token[], options: TraversalOption
     }
 }
 
-export function traverse(token: Token, options: TraversalOptions) {
+export function traverse(token: Token | Token[], options: TraversalOptions) {
     if (!options.preorderCallback && !options.postorderCallback) {
         throw new Error('At leat one callback must be provided.');
     }
 
-    _traverse([token], [], options);
+    if (!Array.isArray(token)) {
+        token = [token];
+    }
+
+    _traverse(token, [], options);
 }

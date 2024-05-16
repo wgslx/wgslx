@@ -14,5 +14,5 @@ include_directive :
 ;
 
 include_path :
-  /"[^*"/>:|?]+"/
+  /"[^*"<>:|?\\]+"/
 ;
