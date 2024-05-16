@@ -1,4 +1,5 @@
 // Implementation of Recursive Descent Parsing as descibed in the WGSL spec.
+import { inspect } from 'util';
 
 import { TextMatcher, createRegExpTextMatcher, createStringTextMatcher } from "./patterns";
 import { Cursor, Sequence } from "./sequence";
@@ -20,6 +21,7 @@ export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[]): RuleMatc
 }
 
 export interface Rule {
+    symbol?: string;
     match(cursor: Cursor, context: Context): RuleMatch | null;
 }
 
@@ -61,16 +63,23 @@ export class Context {
             return undefined;
         }
 
-        return cursorMap.get(rule);
+        const cached = cursorMap.get(rule);
+        return cached
+            ? { cursor: cached.cursor, token: cached.token?.clone() }
+            : cached;
     }
 
     /** Sets a match for a position and rule in the cache. */
-    set(cursorKey: string, rule: Rule, match: RuleMatch) {
+    set(cursorKey: string, rule: Rule, match: RuleMatch | null) {
         let cursorMap = this.cache.get(cursorKey);
 
         if (!cursorMap) {
             cursorMap = new Map<Rule, RuleMatch | null>();
             this.cache.set(cursorKey, cursorMap);
+        }
+
+        if (match) {
+            match = { cursor: match.cursor, token: match.token?.clone() };
         }
 
         cursorMap.set(rule, match);
@@ -165,7 +174,6 @@ export function sequence(first: FlexRule, ...rest: FlexRule[]): Rule {
     const rules = rulifyAll([first, ...rest]);
 
     if (rules.length === 0) {
-        console.log(first, rest);
         throw new Error();
     }
 
@@ -239,6 +247,9 @@ export class MaybeRule implements Rule {
     match(cursor: Cursor, context: Context): RuleMatch | null {
         const match = context.rule(cursor, this.rule);
         if (match) {
+            if (match.token) {
+                match.token.maybe = true;
+            }
             return match;
         }
 
@@ -299,6 +310,8 @@ export class SymbolRule implements Rule {
         if (this.rule) {
             throw new Error(`Duplicate initialization of rule ${this.rule}`);
         }
+
+        SymbolRule.symbolize(rule, this.symbol);
 
         // Look for left recursion.
         if (rule instanceof UnionRule) {
@@ -362,6 +375,24 @@ export class SymbolRule implements Rule {
 
     constructor(name: string) {
         this.symbol = name;
+    }
+
+    static symbolize(rule: Rule, symbol: string) {
+        if (rule instanceof SymbolRule) {
+            return;
+        }
+
+        rule.symbol = symbol;
+
+        if (rule instanceof StarRule || rule instanceof MaybeRule) {
+            SymbolRule.symbolize(rule.rule, symbol);
+        }
+
+        if (rule instanceof SequenceRule || rule instanceof UnionRule) {
+            for (const subrule of rule.rules) {
+                SymbolRule.symbolize(subrule, symbol);
+            }
+        }
     }
 }
 

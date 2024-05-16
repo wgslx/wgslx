@@ -1,3 +1,5 @@
+import { inspect } from 'util';
+
 import { Context } from '../src/rules';
 import { Cursor } from '../src/sequence';
 import { expression, statement, variableDecl, structDecl, functionDecl } from '../src/syntax';
@@ -11,6 +13,102 @@ describe('tokens', () => {
             const match = expression.match(cursor, context);
             expect(match?.cursor).toEqual(Cursor(3));
             expect(match?.token?.toString()).toEqual('a [ 4 ] + b . xyz');
+            //console.log(inspect(match?.token?.toObject(), { depth: null }));
+            expect(match?.token?.toObject()).toEqual({
+                symbols: [
+                    'additive_expression',
+                    'shift_expression',
+                    'relational_expression',
+                    'short_circuit_or_expression',
+                    'short_circuit_and_expression',
+                    'expression'
+                ],
+                children: [
+                    {
+                        symbols: [
+                            'singular_expression',
+                            'unary_expression',
+                            'multiplicative_expression',
+                            'additive_expression',
+                            'binary_and_expression',
+                            'binary_or_expression',
+                            'binary_xor_expression'
+                        ],
+                        children: [
+                            {
+                                source: '0:0:file',
+                                text: 'a',
+                                symbols: [
+                                    'ident_pattern_token',
+                                    'ident',
+                                    'template_elaborated_ident',
+                                    'primary_expression'
+                                ]
+                            },
+                            {
+                                symbols: ['component_or_swizzle_specifier'],
+                                children: [
+                                    { source: '0:1:file', text: '[' },
+                                    {
+                                        source: '0:2:file',
+                                        text: '4',
+                                        symbols: [
+                                            'decimal_int_literal',
+                                            'int_literal',
+                                            'literal',
+                                            'primary_expression',
+                                            'singular_expression',
+                                            'unary_expression',
+                                            'multiplicative_expression',
+                                            'additive_expression',
+                                            'shift_expression',
+                                            'relational_expression',
+                                            'short_circuit_or_expression',
+                                            'short_circuit_and_expression',
+                                            'binary_and_expression',
+                                            'binary_or_expression',
+                                            'binary_xor_expression',
+                                            'expression'
+                                        ]
+                                    },
+                                    { source: '0:3:file', text: ']' }
+                                ]
+                            }
+                        ]
+                    },
+                    { source: '0:5:file', text: '+', symbols: ['additive_operator'] },
+                    {
+                        symbols: [
+                            'singular_expression',
+                            'unary_expression',
+                            'multiplicative_expression'
+                        ],
+                        children: [
+                            {
+                                source: '0:7:file',
+                                text: 'b',
+                                symbols: [
+                                    'ident_pattern_token',
+                                    'ident',
+                                    'template_elaborated_ident',
+                                    'primary_expression'
+                                ]
+                            },
+                            {
+                                symbols: ['component_or_swizzle_specifier'],
+                                children: [
+                                    { source: '0:8:file', text: '.' },
+                                    {
+                                        source: '0:9:file',
+                                        text: 'xyz',
+                                        symbols: ['ident_pattern_token', 'member_ident']
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            });
         });
     });
 

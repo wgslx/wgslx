@@ -17,6 +17,22 @@ export class Token {
 
     children?: Token[];
 
+    maybe: boolean = false;
+
+    hasSymbol(symbol: string) {
+        return this.symbols && this.symbols.includes(symbol);
+    }
+
+    clone(): Token {
+        const token = new Token();
+        token.text = this.text;
+        token.symbols = this.symbols;
+        token.source = this.source;
+        token.children = this.children; // shallow
+        token.maybe = this.maybe;
+        return token;
+    }
+
     toObject(): TokenObject {
         const object: TokenObject = {};
 
@@ -28,12 +44,20 @@ export class Token {
         return object;
     }
 
-    toString() {
+    toString(compact = false) {
         if (this.children) {
-            return this.children
+            const text = this.children
                 .map(m => m?.toString())
                 .filter(t => t)
                 .join(' ');
+
+            if (compact) {
+                return text.replace(
+                    /([^\p{XID_Continue}] |[\p{XID_Continue}] (?![\p{XID_Continue}]))/gu,
+                    (match: string) => match[0]);
+            }
+
+            return text;
         }
 
         return this.text;
@@ -48,10 +72,11 @@ export class Token {
 
     static group(children: Token[], symbol?: string): Token {
         if (children.length === 1) {
+            const token = children[0];
             if (symbol !== undefined) {
-                Token.symbol(children[0], symbol);
+                Token.symbol(token, symbol);
             }
-            return children[0];
+            return token;
         }
 
         const token = new Token();
