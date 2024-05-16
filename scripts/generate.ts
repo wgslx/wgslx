@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path'
 
 const inputPath = path.resolve(__dirname, './syntax.bnf');
-const outputPath = path.resolve(__dirname, '../src/tokens.ts');
+const outputPath = path.resolve(__dirname, '../src/syntax.ts');
 
 const syntax = fs.readFileSync(inputPath, { encoding: 'utf8' });
 
@@ -73,7 +73,7 @@ while (ruleMatch) {
     const identifier = ruleMatch[1];
     const variable = camel(identifier);
 
-    declaration.push(`export const ${variable} = name('${identifier}');`);
+    declaration.push(`export const ${variable} = symbol('${identifier}');`);
 
     const lines = ruleMatch[2].split('\n|').map(s => s.trim());
     const rules = lines
@@ -91,7 +91,7 @@ while (ruleMatch) {
 // Write output.
 const data = `// GENREATED FILE. DO NOT EDIT. RUN \`npm run generate\`
 
-import { maybe, name, sequence, star, union } from "./rules";
+import { maybe, sequence, star, symbol, union } from "./rules";
 
 // CONSTANTS
 const TEMPLATE_ARGS_START = '\u276c';

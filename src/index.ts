@@ -1,1 +1,1 @@
-export * as TokenRules from './tokens';
+export * as Syntax from './syntax';

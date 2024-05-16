@@ -107,7 +107,7 @@ export class LiteralRule implements Rule {
     readonly matcher: TextMatcher;
     readonly literals: string[];
 
-    match(cursor: Cursor, context: Context) {
+    match(cursor: Cursor, context: Context): RuleMatch | null {
         return context.text(cursor, this.matcher);
     }
 
@@ -125,7 +125,7 @@ export class RegExpRule implements Rule {
     readonly matcher: TextMatcher;
     readonly patterns: RegExp[];
 
-    match(cursor: Cursor, context: Context) {
+    match(cursor: Cursor, context: Context): RuleMatch | null {
         return context.text(cursor, this.matcher);
     }
 
@@ -142,7 +142,7 @@ export function regex(...patterns: RegExp[]): Rule {
 export class SequenceRule implements Rule {
     readonly rules: Rule[];
 
-    match(cursor: Cursor, context: Context) {
+    match(cursor: Cursor, context: Context): RuleMatch | null {
         const matches: RuleMatch[] = [];
         for (const rule of this.rules) {
             const match = context.rule(cursor, rule);
@@ -179,7 +179,7 @@ export function sequence(first: FlexRule, ...rest: FlexRule[]): Rule {
 export class UnionRule implements Rule {
     readonly rules: Rule[];
 
-    match(cursor: Cursor, context: Context) {
+    match(cursor: Cursor, context: Context): RuleMatch | null {
 
         let longest: RuleMatch | undefined = undefined;
 
@@ -236,7 +236,7 @@ export function union(first: FlexRule, ...rest: FlexRule[]): Rule {
 export class MaybeRule implements Rule {
     readonly rule: Rule;
 
-    match(cursor: Cursor, context: Context) {
+    match(cursor: Cursor, context: Context): RuleMatch | null {
         const match = context.rule(cursor, this.rule);
         if (match) {
             return match;
@@ -260,7 +260,7 @@ export function maybe(first: FlexRule, ...rest: FlexRule[]): Rule {
 export class StarRule implements Rule {
     readonly rule: Rule;
 
-    match(cursor: Cursor, context: Context) {
+    match(cursor: Cursor, context: Context): RuleMatch | null {
         const matches: RuleMatch[] = [];
         let match = context.rule(cursor, this.rule);
         while (match) {
@@ -282,8 +282,8 @@ export function star(first: FlexRule, ...rest: FlexRule[]): Rule {
     return new StarRule(rule);
 }
 
-export class NamedRule implements Rule {
-    readonly name: string;
+export class SymbolRule implements Rule {
+    readonly symbol: string;
     private leftRecursiveRest?: Rule;
     private rule?: Rule;
 
@@ -326,9 +326,9 @@ export class NamedRule implements Rule {
         this.rule = rule;
     }
 
-    match(cursor: Cursor, context: Context): RuleMatch {
+    match(cursor: Cursor, context: Context): RuleMatch | null {
         if (!this.rule) {
-            throw new Error(`Uninitialized rule ${this.name}`);
+            throw new Error(`Uninitialized rule ${this.symbol}`);
         }
 
         let match = context.rule(cursor, this.rule);
@@ -336,7 +336,7 @@ export class NamedRule implements Rule {
             return null;
         }
 
-        Token.symbol(match.token, this.name);
+        Token.symbol(match.token, this.symbol);
 
         if (this.leftRecursiveRest) {
             let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
@@ -348,8 +348,8 @@ export class NamedRule implements Rule {
 
                 match = {
                     token: restMatch.token.children
-                        ? Token.group([match.token, ...restMatch.token.children], this.name)
-                        : Token.group([match.token, restMatch.token], this.name),
+                        ? Token.group([match.token, ...restMatch.token.children], this.symbol)
+                        : Token.group([match.token, restMatch.token], this.symbol),
                     cursor: restMatch.cursor,
                 };
 
@@ -361,13 +361,13 @@ export class NamedRule implements Rule {
     }
 
     constructor(name: string) {
-        this.name = name;
+        this.symbol = name;
     }
 }
 
-const registry = new Map<string, NamedRule>();
-export function name(name: string): NamedRule {
-    const rule = new NamedRule(name);
+const registry = new Map<string, SymbolRule>();
+export function symbol(name: string): SymbolRule {
+    const rule = new SymbolRule(name);
 
     if (registry.has(name)) {
         throw new Error(`Duplicate named rule ${rule}`);
@@ -376,7 +376,7 @@ export function name(name: string): NamedRule {
     return rule;
 }
 
-export function rule(name: string): NamedRule {
+export function rule(name: string): SymbolRule {
     const rule = registry.get(name);
 
     if (!rule) {
@@ -384,21 +384,4 @@ export function rule(name: string): NamedRule {
     }
 
     return rule;
-}
-
-export type TokenTree = null | string | Array<TokenTree>;
-
-export function stringify(match: Token | RuleMatch): string {
-    if ('cursor' in match) {
-        match = match.token;
-    }
-
-    if (match.children) {
-        return match.children
-            .map(m => stringify(m))
-            .filter(t => t)
-            .join(' ');
-    }
-
-    return match.text;
 }
