@@ -14,6 +14,7 @@ const GREATER_THAN_EQUAL = '>=';
 const SHIFT_LEFT_ASSIGN = '<<=';
 const SHIFT_RIGHT_ASSIGN = '>>=';
 
+
 // DECLARATIONS
 export const translationUnit = symbol('translation_unit');
 export const globalDirective = symbol('global_directive');
@@ -734,4 +735,30 @@ swizzleName.set(union(
 	/[xyzw][xyzw]/,
 	/[xyzw][xyzw][xyzw]/,
 	/[xyzw][xyzw][xyzw][xyzw]/,
+));
+
+// DECLARATIONS
+export const translationUnitExtended = symbol('translation_unit_extended');
+export const globalDirectiveExtended = symbol('global_directive_extended');
+export const includeDirective = symbol('include_directive');
+export const includePath = symbol('include_path');
+
+// IMPLEMENTATIONS
+translationUnitExtended.set(union(
+	sequence(star(globalDirectiveExtended), star(globalDecl)),
+));
+
+globalDirectiveExtended.set(union(
+	diagnosticDirective,
+	enableDirective,
+	requiresDirective,
+	includeDirective,
+));
+
+includeDirective.set(union(
+	sequence('import', includePath, ';'),
+));
+
+includePath.set(union(
+	/"[^*"/>:|?]+"/,
 ));

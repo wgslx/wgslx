@@ -2,7 +2,7 @@ import { inspect } from 'util';
 
 import { Context } from '../src/rules';
 import { Cursor } from '../src/sequence';
-import { expression, statement, variableDecl, structDecl, functionDecl } from '../src/syntax';
+import { expression, statement, variableDecl, structDecl, functionDecl, translationUnitExtended } from '../src/syntax';
 
 describe('tokens', () => {
     describe('expression', () => {
@@ -190,4 +190,15 @@ describe('tokens', () => {
     //         expect(match?.token?.toString()).toEqual('fn average ( a : f32 , b : f32 ) -> f32 { return ( a + b ) / 2 ; }');
     //     });
     // });
+
+    describe('translationUnitExtended', () => {
+        test('import external file', () => {
+            const context = Context.from('import "f";', 'file');
+            const cursor = Cursor(0);
+
+            const match = translationUnitExtended.match(cursor, context);
+            expect(match?.cursor).toEqual(Cursor(2));
+            expect(match?.token?.toString()).toEqual('import "f" ;');
+        });
+    });
 });

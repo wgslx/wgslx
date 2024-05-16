@@ -1,0 +1,18 @@
+translation_unit_extended :
+  global_directive_extended * global_decl *
+;
+
+global_directive_extended :
+  diagnostic_directive
+| enable_directive
+| requires_directive
+| include_directive
+;
+
+include_directive :
+  'import' include_path ';'
+;
+
+include_path :
+  /"[^*"/>:|?]+"/
+;

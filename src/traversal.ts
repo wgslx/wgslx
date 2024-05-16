@@ -28,32 +28,49 @@ export function childrenOfType(token: Token, symbols: FlexSymbol[]): Token[] {
     return token.children.filter(t => t.symbols && names.some(n => t.symbols.includes(n)));
 }
 
-type TraversalCallback = (token: Token, ancestors: Token[], index: number) => void;
+type PreorderCallback = (token: Token, ancestors: Token[], index: number) => void | boolean | PostorderCallback;
+type PostorderCallback = (token: Token, ancestors: Token[], index: number) => void;
 interface TraversalOptions {
     predicate?: (t: Token) => boolean;
-    beforeCallback?: TraversalCallback;
-    afterCallback?: TraversalCallback;
+    preorderCallback?: PreorderCallback;
+    postorderCallback?: PostorderCallback;
 }
 
 function _traverse(tokens: Token[], ancestors: Token[], options: TraversalOptions) {
     for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
         const match = options?.predicate(token) ?? true;
+        let cleanupCallback: PostorderCallback | undefined = undefined;
 
-        if (match) {
-            options.beforeCallback?.(token, ancestors, i);
+        if (match && options.preorderCallback) {
+            const result = options.preorderCallback(token, ancestors, i);
+            if (typeof result === 'function') {
+                cleanupCallback = result;
+            }
+
+            if (result === false) {
+                continue;
+            }
         }
 
         if (token.children) {
             _traverse(token.children, [...ancestors, token], options);
         }
 
-        if (match) {
-            options.afterCallback?.(token, ancestors, i);
+        if (cleanupCallback) {
+            cleanupCallback(token, ancestors, i);
+        }
+
+        if (match && options.postorderCallback) {
+            options.postorderCallback(token, ancestors, i);
         }
     }
 }
 
 export function traverse(token: Token, options: TraversalOptions) {
+    if (!options.preorderCallback && !options.postorderCallback) {
+        throw new Error('At leat one callback must be provided.');
+    }
+
     _traverse([token], [], options);
 }

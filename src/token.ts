@@ -9,6 +9,8 @@ export interface TokenObject {
 }
 
 export class Token {
+    id: number;
+
     text?: string;
 
     symbols?: string[];
@@ -94,5 +96,11 @@ export class Token {
             token.symbols.push(symbol);
         }
         return token;
+    }
+
+    private static idCount = 0;
+
+    private constructor() {
+        this.id = ++Token.idCount;
     }
 }
