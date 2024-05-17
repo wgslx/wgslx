@@ -23,8 +23,8 @@ export function assertType(token: Token, symbol: FlexSymbol) {
 export function ofType(...symbols: FlexSymbol[]) {
     const names = symbolNames(symbols);
     return (token: Token): boolean => {
-        if (token.symbols) {
-            const symbols = token.symbols;
+        if (token.symbol) {
+            const symbols = token.symbol;
             return names.some(n => symbols.includes(n));
         }
         return false;

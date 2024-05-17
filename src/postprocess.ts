@@ -1,5 +1,5 @@
 
-import { compoundStatement, functionDecl, translationUnit } from "./syntax";
+import { compoundStatement, functionDecl, functionHeader, globalValueDecl, globalVariableDecl, ident, optionallyTypedIdent, translationUnit, variableDecl, variableOrValueStatement } from "./syntax";
 import { Token } from "./token";
 import { assertType, ofType, traverse } from "./traversal";
 
@@ -25,8 +25,8 @@ export function minify(token: Token) {
             functionDecl,
             compoundStatement,
 
-
-            // Declarations.
+            // Identifier
+            ident,
         ),
         preorderCallback: (token: Token) => {
 

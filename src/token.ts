@@ -1,7 +1,7 @@
 export interface TokenObject {
     text?: string;
 
-    symbols?: string[];
+    symbol?: string;
 
     source?: string;
 
@@ -13,7 +13,7 @@ export class Token {
 
     text?: string;
 
-    symbols?: string[];
+    symbol?: string;
 
     source?: string;
 
@@ -22,13 +22,13 @@ export class Token {
     maybe: boolean = false;
 
     hasSymbol(symbol: string) {
-        return this.symbols && this.symbols.includes(symbol);
+        return this.symbol && this.symbol.includes(symbol);
     }
 
     clone(): Token {
         const token = new Token();
         token.text = this.text;
-        token.symbols = this.symbols;
+        token.symbol = this.symbol;
         token.source = this.source;
         token.children = this.children; // shallow
         token.maybe = this.maybe;
@@ -40,7 +40,7 @@ export class Token {
 
         if (this.source) object.source = this.source;
         if (this.text) object.text = this.text;
-        if (this.symbols) object.symbols = [...this.symbols];
+        if (this.symbol) object.symbol = this.symbol;
         if (this.children) object.children = this.children.map(t => t.toObject());
 
         return object;
@@ -73,34 +73,62 @@ export class Token {
     }
 
     static group(children: Token[], symbol?: string): Token {
-        if (children.length === 1) {
-            const token = children[0];
-            if (symbol !== undefined) {
-                Token.symbol(token, symbol);
-            }
-            return token;
-        }
+        // if (children.length === 1) {
+        //     const token = children[0];
+        //     if (symbol !== undefined) {
+        //         Token.symbol(token, symbol);
+        //     }
+        //     return token;
+        // }
 
         const token = new Token();
         token.children = children;
         if (symbol !== undefined) {
-            token.symbols = [symbol];
+            token.symbol = symbol;
         }
         return token;
     }
 
     static symbol(token: Token, symbol: string): Token {
-        if (token.symbols === undefined) {
-            token.symbols = [symbol];
-        } else {
-            token.symbols.push(symbol);
+        if (token.symbol === undefined) {
+            token.symbol = symbol;
+            return token;
         }
-        return token;
+
+        const parent = new Token();
+        parent.children = [token];
+        parent.symbol = symbol;
+        return parent;
     }
 
     private static idCount = 0;
 
     private constructor() {
         this.id = ++Token.idCount;
+    }
+}
+
+
+/** Context for rule token matching. */
+export class Multimap<TKey, TValue> {
+    readonly map = new Map<TKey, TValue[]>();
+
+    /** Gets a match for a position and rule in the cache. */
+    get(key: TKey): TValue[] {
+        return this.map.get(key) ?? [];
+    }
+
+    /** Sets a match for a position and rule in the cache. */
+    add(key: TKey, value: TValue) {
+        let list = this.map.get(key);
+
+        if (list) {
+            list.push(value);
+        } else {
+            list = [value];
+            this.map.set(key, list);
+        }
+
+        return list;
     }
 }

@@ -166,6 +166,7 @@ describe('maybe', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
+            symbol: "?",
             text: 'quick',
             source: '0:0:file',
         });
@@ -185,6 +186,7 @@ describe('maybe', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
+            symbol: "?",
             children: [
                 {
                     text: 'quick',
@@ -228,9 +230,7 @@ describe('star', () => {
             segment: 0,
             start: 0,
         });
-        expect(match?.token?.toObject()).toEqual({
-            children: [],
-        });
+        expect(match?.token?.toObject()).toBe(undefined);
     });
 
     test('matches single positive', () => {
@@ -247,8 +247,11 @@ describe('star', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
-            text: 'quick',
-            source: '0:0:file',
+            symbol: '*',
+            children: [{
+                text: 'quick',
+                source: '0:0:file',
+            }],
         });
     });
 
@@ -266,6 +269,7 @@ describe('star', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
+            symbol: '*',
             children: [
                 {
                     text: 'quick',

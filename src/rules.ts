@@ -13,9 +13,18 @@ export interface RuleMatch {
     cursor: Cursor;
 }
 
-export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[]): RuleMatch {
+export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[], symbol?: string): RuleMatch {
     if (Array.isArray(token)) {
-        token = Token.group(token.map(r => r.token).filter(isValued));
+        if (token.length === 0) {
+            token = undefined;
+        } else {
+
+            token = Token.group(token.map(r => r.token).filter(isValued));
+        }
+    }
+
+    if (token && symbol !== undefined) {
+        token = Token.symbol(token, symbol);
     }
 
     return { token, cursor };
@@ -249,7 +258,7 @@ export class MaybeRule implements Rule {
         const match = context.rule(cursor, this.rule);
         if (match) {
             if (match.token) {
-                match.token.maybe = true;
+                match.token = Token.symbol(match.token, '?');
             }
             return match;
         }
@@ -281,7 +290,7 @@ export class StarRule implements Rule {
             match = context.rule(cursor, this.rule);
         }
 
-        return ruleMatch(cursor, matches);
+        return ruleMatch(cursor, matches, "*");
     }
 
     constructor(rule: Rule) {
@@ -355,7 +364,7 @@ export class SymbolRule implements Rule {
             return match;
         }
 
-        Token.symbol(match.token, this.symbol);
+        match.token = Token.symbol(match.token, this.symbol);
 
         if (this.leftRecursiveRest) {
             let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
