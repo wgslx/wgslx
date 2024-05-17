@@ -6,7 +6,8 @@
     "WebGPU",
     "WGSL"
   ],
-  "main": "bin/index.js",
+  "main": "dist/index.js",
+  "types": "dist/acorn.d.ts",
   "scripts": {
     "build": "npx tsc --build",
     "generate": "npx ts-node scripts/generate.ts",

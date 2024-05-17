@@ -4,8 +4,9 @@
         "lib": [
             "es2021"
         ],
-        "outDir": "build",
+        "outDir": "dist",
         "module": "commonjs",
+        "declaration": true,
         "removeComments": true,
         "moduleResolution": "node",
         "typeRoots": [
