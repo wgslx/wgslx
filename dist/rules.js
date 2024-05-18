@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rule = exports.symbol = exports.SymbolRule = exports.star = exports.StarRule = exports.maybe = exports.MaybeRule = exports.union = exports.UnionRule = exports.sequence = exports.SequenceRule = exports.regex = exports.RegExpRule = exports.literal = exports.LiteralRule = exports.Context = exports.ruleMatch = void 0;
+exports.rule = exports.symbol = exports.SymbolRule = exports.star = exports.StarRule = exports.maybe = exports.MaybeRule = exports.union = exports.UnionRule = exports.sequence = exports.SequenceRule = exports.regex = exports.RegExpRule = exports.literal = exports.LiteralRule = exports.Context = exports.Rule = exports.ruleMatch = void 0;
 const patterns_1 = require("./patterns");
 const sequence_1 = require("./sequence");
 const token_1 = require("./token");
@@ -20,6 +20,23 @@ function ruleMatch(cursor, token, symbol) {
     return { token, cursor };
 }
 exports.ruleMatch = ruleMatch;
+class Rule {
+    symbol;
+    matchAll(text, file) {
+        const context = Context.from(text, file);
+        const cursor = (0, sequence_1.Cursor)(0);
+        const match = this.match(cursor, context);
+        if (match?.token) {
+            if (match.cursor.segment < context.sequence.segments.length) {
+                console.log(match.cursor.segment, context.sequence);
+                return null;
+            }
+            return match.token;
+        }
+        return null;
+    }
+}
+exports.Rule = Rule;
 class Context {
     sequence;
     cache = new Map();
@@ -82,13 +99,14 @@ function rulifyOne(rule) {
 function rulifyAll(rules) {
     return rules.map(r => rulifyOne(r));
 }
-class LiteralRule {
+class LiteralRule extends Rule {
     matcher;
     literals;
     match(cursor, context) {
         return context.text(cursor, this.matcher);
     }
     constructor(literals) {
+        super();
         this.matcher = (0, patterns_1.createStringTextMatcher)(...literals);
         this.literals = literals;
     }
@@ -98,13 +116,14 @@ function literal(...literals) {
     return new LiteralRule(literals);
 }
 exports.literal = literal;
-class RegExpRule {
+class RegExpRule extends Rule {
     matcher;
     patterns;
     match(cursor, context) {
         return context.text(cursor, this.matcher);
     }
     constructor(patterns) {
+        super();
         this.matcher = (0, patterns_1.createRegExpTextMatcher)(...patterns);
         this.patterns = patterns;
     }
@@ -114,7 +133,7 @@ function regex(...patterns) {
     return new RegExpRule(patterns);
 }
 exports.regex = regex;
-class SequenceRule {
+class SequenceRule extends Rule {
     rules;
     match(cursor, context) {
         const matches = [];
@@ -129,6 +148,7 @@ class SequenceRule {
         return ruleMatch(cursor, matches);
     }
     constructor(rules) {
+        super();
         this.rules = rules;
     }
 }
@@ -144,7 +164,7 @@ function sequence(first, ...rest) {
     return new SequenceRule(rules);
 }
 exports.sequence = sequence;
-class UnionRule {
+class UnionRule extends Rule {
     rules;
     match(cursor, context) {
         let longest = undefined;
@@ -173,6 +193,7 @@ class UnionRule {
         return longest;
     }
     constructor(rules) {
+        super();
         this.rules = rules;
     }
 }
@@ -185,14 +206,11 @@ function union(first, ...rest) {
     return new UnionRule(rules);
 }
 exports.union = union;
-class MaybeRule {
+class MaybeRule extends Rule {
     rule;
     match(cursor, context) {
         const match = context.rule(cursor, this.rule);
         if (match) {
-            if (match.token) {
-                match.token = token_1.Token.symbol(match.token, '?');
-            }
             return match;
         }
         return {
@@ -200,6 +218,7 @@ class MaybeRule {
         };
     }
     constructor(rule) {
+        super();
         this.rule = rule;
     }
 }
@@ -209,7 +228,7 @@ function maybe(first, ...rest) {
     return new MaybeRule(rule);
 }
 exports.maybe = maybe;
-class StarRule {
+class StarRule extends Rule {
     rule;
     match(cursor, context) {
         const matches = [];
@@ -219,9 +238,10 @@ class StarRule {
             cursor = match.cursor;
             match = context.rule(cursor, this.rule);
         }
-        return ruleMatch(cursor, matches, "*");
+        return ruleMatch(cursor, matches);
     }
     constructor(rule) {
+        super();
         this.rule = rule;
     }
 }
@@ -231,7 +251,7 @@ function star(first, ...rest) {
     return new StarRule(rule);
 }
 exports.star = star;
-class SymbolRule {
+class SymbolRule extends Rule {
     symbol;
     leftRecursiveRest;
     rule;
@@ -301,6 +321,7 @@ class SymbolRule {
         return match;
     }
     constructor(name) {
+        super();
         this.symbol = name;
     }
     static symbolize(rule, symbol) {

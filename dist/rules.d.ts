@@ -6,9 +6,10 @@ export interface RuleMatch {
     cursor: Cursor;
 }
 export declare function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[], symbol?: string): RuleMatch;
-export interface Rule {
+export declare abstract class Rule {
     symbol?: string;
-    match(cursor: Cursor, context: Context): RuleMatch | null;
+    abstract match(cursor: Cursor, context: Context): RuleMatch | null;
+    matchAll(text: string, file: string): Token | null;
 }
 export declare class Context {
     readonly sequence: Sequence;
@@ -21,45 +22,45 @@ export declare class Context {
     static from(text: string, file: string): Context;
 }
 type FlexRule = string | RegExp | Rule;
-export declare class LiteralRule implements Rule {
+export declare class LiteralRule extends Rule {
     readonly matcher: TextMatcher;
     readonly literals: string[];
     match(cursor: Cursor, context: Context): RuleMatch | null;
     constructor(literals: string[]);
 }
 export declare function literal(...literals: string[]): Rule;
-export declare class RegExpRule implements Rule {
+export declare class RegExpRule extends Rule {
     readonly matcher: TextMatcher;
     readonly patterns: RegExp[];
     match(cursor: Cursor, context: Context): RuleMatch | null;
     constructor(patterns: RegExp[]);
 }
 export declare function regex(...patterns: RegExp[]): Rule;
-export declare class SequenceRule implements Rule {
+export declare class SequenceRule extends Rule {
     readonly rules: Rule[];
     match(cursor: Cursor, context: Context): RuleMatch | null;
     constructor(rules: Rule[]);
 }
 export declare function sequence(first: FlexRule, ...rest: FlexRule[]): Rule;
-export declare class UnionRule implements Rule {
+export declare class UnionRule extends Rule {
     readonly rules: Rule[];
     match(cursor: Cursor, context: Context): RuleMatch | null;
     constructor(rules: Rule[]);
 }
 export declare function union(first: FlexRule, ...rest: FlexRule[]): Rule;
-export declare class MaybeRule implements Rule {
+export declare class MaybeRule extends Rule {
     readonly rule: Rule;
     match(cursor: Cursor, context: Context): RuleMatch | null;
     constructor(rule: Rule);
 }
 export declare function maybe(first: FlexRule, ...rest: FlexRule[]): Rule;
-export declare class StarRule implements Rule {
+export declare class StarRule extends Rule {
     readonly rule: Rule;
     match(cursor: Cursor, context: Context): RuleMatch | null;
     constructor(rule: Rule);
 }
 export declare function star(first: FlexRule, ...rest: FlexRule[]): Rule;
-export declare class SymbolRule implements Rule {
+export declare class SymbolRule extends Rule {
     readonly symbol: string;
     private leftRecursiveRest?;
     private rule?;
