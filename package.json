@@ -7,7 +7,7 @@
     "WGSL"
   ],
   "main": "dist/index.js",
-  "types": "dist/acorn.d.ts",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "npx tsc --build",
     "generate": "npx ts-node scripts/generate.ts",
