@@ -43,7 +43,8 @@ export abstract class Rule {
         const match = this.match(cursor, context);
 
         if (match?.token) {
-            if (cursor.segment < context.sequence.segments.length) {
+            if (match.cursor.segment < context.sequence.segments.length) {
+                console.log(match.cursor.segment, context.sequence);
                 return null;
             }
 

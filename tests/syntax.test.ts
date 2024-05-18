@@ -243,11 +243,8 @@ describe('tokens', () => {
                 }
                 `;
 
-            const context = Context.from(text, 'file');
-            const cursor = Cursor(0);
-
-            const match = functionDecl.match(cursor, context);
-            expect(match?.token?.toString()).toEqual('@ vertex fn main ( @ builtin ( vertex_index ) VertexIndex : u32 ) -> @ builtin ( position ) vec4f { var pos = array ❬ vec2f , 3 ❭ ( vec2 ( 0.0 , 0.5 ) , vec2 ( - 0.5 , - 0.5 ) , vec2 ( 0.5 , - 0.5 ) ) ; return vec4f ( pos [ VertexIndex ] , 0.0 , 1.0 ) ; }');
+            const token = functionDecl.matchAll(text, 'file');
+            expect(token?.toString()).toEqual('@ vertex fn main ( @ builtin ( vertex_index ) VertexIndex : u32 ) -> @ builtin ( position ) vec4f { var pos = array ❬ vec2f , 3 ❭ ( vec2 ( 0.0 , 0.5 ) , vec2 ( - 0.5 , - 0.5 ) , vec2 ( 0.5 , - 0.5 ) ) ; return vec4f ( pos [ VertexIndex ] , 0.0 , 1.0 ) ; }');
         });
     });
 
@@ -264,12 +261,9 @@ describe('tokens', () => {
 
     describe('translationUnitExtended', () => {
         test('import external file', () => {
-            const context = Context.from('import "f";', 'file');
-            const cursor = Cursor(0);
-
-            const match = translationUnitExtended.match(cursor, context);
-            expect(match?.cursor).toEqual(Cursor(2));
-            expect(match?.token?.toString()).toEqual('import "f" ;');
+            const code = 'import "f";';
+            const token = translationUnitExtended.matchAll(code, 'file');
+            expect(token?.toString()).toEqual('import "f" ;');
         });
     });
 });
