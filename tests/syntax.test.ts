@@ -102,8 +102,8 @@ describe('tokens', () => {
             const match = expression.match(cursor, context);
             expect(match?.cursor).toEqual(Cursor(3));
             expect(match?.token?.toString()).toEqual('a [ 4 ] + b . xyz');
-            console.log(stringify(match?.token));
-            console.log(inspect(match?.token?.toObject(), { depth: null }));
+            //console.log(stringify(match?.token));
+            //console.log(inspect(match?.token?.toObject(), { depth: null }));
             expect(match?.token?.toObject()).toEqual(
                 node(
                     [

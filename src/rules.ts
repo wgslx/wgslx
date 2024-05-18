@@ -18,7 +18,6 @@ export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[], symbol?: 
         if (token.length === 0) {
             token = undefined;
         } else {
-
             token = Token.group(token.map(r => r.token).filter(isValued));
         }
     }
@@ -30,9 +29,29 @@ export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[], symbol?: 
     return { token, cursor };
 }
 
-export interface Rule {
+export abstract class Rule {
+    /** The symbol this rule is a part of. */
     symbol?: string;
-    match(cursor: Cursor, context: Context): RuleMatch | null;
+
+    /** Match this cursor against a context. */
+    abstract match(cursor: Cursor, context: Context): RuleMatch | null;
+
+    matchAll(text: string, file: string): Token | null {
+        const context = Context.from(text, file);
+        const cursor = Cursor(0);
+
+        const match = this.match(cursor, context);
+
+        if (match?.token) {
+            if (cursor.segment < context.sequence.segments.length) {
+                return null;
+            }
+
+            return match.token;
+        }
+
+        return null;
+    }
 }
 
 /** Context for rule token matching. */
@@ -122,7 +141,7 @@ function rulifyAll(rules: FlexRule[]): Rule[] {
     return rules.map(r => rulifyOne(r));
 }
 
-export class LiteralRule implements Rule {
+export class LiteralRule extends Rule {
     readonly matcher: TextMatcher;
     readonly literals: string[];
 
@@ -131,6 +150,8 @@ export class LiteralRule implements Rule {
     }
 
     constructor(literals: string[]) {
+        super();
+
         this.matcher = createStringTextMatcher(...literals);
         this.literals = literals;
     }
@@ -140,7 +161,7 @@ export function literal(...literals: string[]): Rule {
     return new LiteralRule(literals);
 }
 
-export class RegExpRule implements Rule {
+export class RegExpRule extends Rule {
     readonly matcher: TextMatcher;
     readonly patterns: RegExp[];
 
@@ -149,6 +170,8 @@ export class RegExpRule implements Rule {
     }
 
     constructor(patterns: RegExp[]) {
+        super();
+
         this.matcher = createRegExpTextMatcher(...patterns);
         this.patterns = patterns;
     }
@@ -158,7 +181,7 @@ export function regex(...patterns: RegExp[]): Rule {
     return new RegExpRule(patterns)
 }
 
-export class SequenceRule implements Rule {
+export class SequenceRule extends Rule {
     readonly rules: Rule[];
 
     match(cursor: Cursor, context: Context): RuleMatch | null {
@@ -176,6 +199,8 @@ export class SequenceRule implements Rule {
     }
 
     constructor(rules: Rule[]) {
+        super();
+
         this.rules = rules;
     }
 }
@@ -194,7 +219,7 @@ export function sequence(first: FlexRule, ...rest: FlexRule[]): Rule {
     return new SequenceRule(rules);
 }
 
-export class UnionRule implements Rule {
+export class UnionRule extends Rule {
     readonly rules: Rule[];
 
     match(cursor: Cursor, context: Context): RuleMatch | null {
@@ -233,6 +258,8 @@ export class UnionRule implements Rule {
     }
 
     constructor(rules: Rule[]) {
+        super();
+
         this.rules = rules;
     }
 }
@@ -251,15 +278,15 @@ export function union(first: FlexRule, ...rest: FlexRule[]): Rule {
     return new UnionRule(rules);
 }
 
-export class MaybeRule implements Rule {
+export class MaybeRule extends Rule {
     readonly rule: Rule;
 
     match(cursor: Cursor, context: Context): RuleMatch | null {
         const match = context.rule(cursor, this.rule);
         if (match) {
-            if (match.token) {
-                match.token = Token.symbol(match.token, '?');
-            }
+            // if (match.token) {
+            //     match.token = Token.symbol(match.token, '?');
+            // }
             return match;
         }
 
@@ -269,6 +296,8 @@ export class MaybeRule implements Rule {
     }
 
     constructor(rule: Rule) {
+        super();
+
         this.rule = rule;
     }
 }
@@ -278,7 +307,7 @@ export function maybe(first: FlexRule, ...rest: FlexRule[]): Rule {
     return new MaybeRule(rule);
 }
 
-export class StarRule implements Rule {
+export class StarRule extends Rule {
     readonly rule: Rule;
 
     match(cursor: Cursor, context: Context): RuleMatch | null {
@@ -290,10 +319,12 @@ export class StarRule implements Rule {
             match = context.rule(cursor, this.rule);
         }
 
-        return ruleMatch(cursor, matches, "*");
+        return ruleMatch(cursor, matches /** , "*" */);
     }
 
     constructor(rule: Rule) {
+        super();
+
         this.rule = rule;
     }
 }
@@ -303,7 +334,7 @@ export function star(first: FlexRule, ...rest: FlexRule[]): Rule {
     return new StarRule(rule);
 }
 
-export class SymbolRule implements Rule {
+export class SymbolRule extends Rule {
     readonly symbol: string;
     private leftRecursiveRest?: Rule;
     private rule?: Rule;
@@ -394,6 +425,8 @@ export class SymbolRule implements Rule {
     }
 
     constructor(name: string) {
+        super();
+
         this.symbol = name;
     }
 

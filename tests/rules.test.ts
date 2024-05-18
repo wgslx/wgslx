@@ -6,12 +6,14 @@ describe('rules', () => {
         test('caches', () => {
             const context = Context.from('foobar', 'file');
             let times = 0;
-            const rule: Rule = {
-                match: (cursor: Cursor, context: Context) => {
+
+            class CountRule extends Rule {
+                match(cursor: Cursor, context: Context) {
                     times++;
                     return null;
                 }
-            };
+            }
+            const rule = new CountRule();
 
             const cursor = {
                 segment: 0,
@@ -166,7 +168,7 @@ describe('maybe', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
-            symbol: "?",
+            // symbol: '?',
             text: 'quick',
             source: '0:0:file',
         });
@@ -186,7 +188,7 @@ describe('maybe', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
-            symbol: "?",
+            // symbol: '?',
             children: [
                 {
                     text: 'quick',
@@ -247,7 +249,7 @@ describe('star', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
-            symbol: '*',
+            // symbol: '*',
             children: [{
                 text: 'quick',
                 source: '0:0:file',
@@ -269,7 +271,7 @@ describe('star', () => {
             start: 0,
         });
         expect(match?.token?.toObject()).toEqual({
-            symbol: '*',
+            // symbol: '*',
             children: [
                 {
                     text: 'quick',
