@@ -11,7 +11,6 @@
   "scripts": {
     "build": "npx tsc --build",
     "generate": "npx ts-node scripts/generate.ts",
-    "publish": "npm run test && npm run build && npm publish --access public",
     "test": "npx jest"
   },
   "author": "Aaron Sun github.com/axiverse",
