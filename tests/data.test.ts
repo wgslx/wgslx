@@ -1,4 +1,3 @@
 describe('data', () => {
-    test('placeholder', () => {
-    });
+  test('placeholder', () => {});
 });

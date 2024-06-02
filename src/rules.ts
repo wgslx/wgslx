@@ -1,472 +1,483 @@
-// Implementation of Recursive Descent Parsing as descibed in the WGSL spec.
-import { inspect } from 'util';
+// Implementation of Recursive Descent Parsing as described in the WGSL spec.
+import {inspect} from 'util';
 
-import { TextMatcher, createRegExpTextMatcher, createStringTextMatcher } from "./patterns";
-import { Cursor, Sequence } from "./sequence";
-import { Token } from "./token";
-import { isValued } from './util';
+import {
+  TextMatcher,
+  createRegExpTextMatcher,
+  createStringTextMatcher,
+} from './patterns';
+import {Cursor, Sequence} from './sequence';
+import {Token} from './token';
+import {isValued} from './util';
 
 export interface RuleMatch {
-    token?: Token;
+  token?: Token;
 
-    // Next cursor after the match.
-    cursor: Cursor;
+  // Next cursor after the match.
+  cursor: Cursor;
 }
 
-export function ruleMatch(cursor: Cursor, token?: Token | RuleMatch[], symbol?: string): RuleMatch {
-    if (Array.isArray(token)) {
-        if (token.length === 0) {
-            token = undefined;
-        } else {
-            token = Token.group(token.map(r => r.token).filter(isValued));
-        }
+export function ruleMatch(
+  cursor: Cursor,
+  token?: Token | RuleMatch[],
+  symbol?: string
+): RuleMatch {
+  if (Array.isArray(token)) {
+    if (token.length === 0) {
+      token = undefined;
+    } else {
+      token = Token.group(token.map((r) => r.token).filter(isValued));
     }
+  }
 
-    if (token && symbol !== undefined) {
-        token = Token.symbol(token, symbol);
-    }
+  if (token && symbol !== undefined) {
+    token = Token.symbol(token, symbol);
+  }
 
-    return { token, cursor };
+  return {token, cursor};
 }
 
 export abstract class Rule {
-    /** The symbol this rule is a part of. */
-    symbol?: string;
+  /** The symbol this rule is a part of. */
+  symbol?: string;
 
-    /** Match this cursor against a context. */
-    abstract match(cursor: Cursor, context: Context): RuleMatch | null;
+  /** Match this cursor against a context. */
+  abstract match(cursor: Cursor, context: Context): RuleMatch | null;
 
-    matchAll(text: string, file: string): Token | null {
-        const context = Context.from(text, file);
-        const cursor = Cursor(0);
+  matchAll(text: string, file: string): Token | null {
+    const context = Context.from(text, file);
+    const cursor = Cursor(0);
 
-        const match = this.match(cursor, context);
+    const match = this.match(cursor, context);
 
-        if (match?.token) {
-            if (match.cursor.segment < context.sequence.segments.length) {
-                console.log(match.cursor.segment, context.sequence);
-                return null;
-            }
-
-            return match.token;
-        }
-
+    if (match?.token) {
+      if (match.cursor.segment < context.sequence.segments.length) {
+        console.log(match.cursor.segment, context.sequence);
         return null;
+      }
+
+      return match.token;
     }
+
+    return null;
+  }
 }
 
 /** Context for rule token matching. */
 export class Context {
-    readonly sequence: Sequence;
-    readonly cache = new Map<string, Map<Rule, RuleMatch | null>>();
+  readonly sequence: Sequence;
+  readonly cache = new Map<string, Map<Rule, RuleMatch | null>>();
 
-    text(cursor: Cursor, matcher: TextMatcher): RuleMatch | null {
-        // TODO: Optionally cache results, though this is linear cost.
-        const cursorKey = this.sequence.stringify(cursor);
-        const textMatch = this.sequence.match(cursor, matcher);
+  text(cursor: Cursor, matcher: TextMatcher): RuleMatch | null {
+    // TODO: Optionally cache results, though this is linear cost.
+    const cursorKey = this.sequence.stringify(cursor);
+    const textMatch = this.sequence.match(cursor, matcher);
 
-        if (!textMatch) {
-            return null;
-        }
-
-        return ruleMatch(textMatch.cursor, Token.text(textMatch.text, cursorKey));
+    if (!textMatch) {
+      return null;
     }
 
-    rule(cursor: Cursor, rule: Rule): RuleMatch | null {
-        const cursorKey = this.sequence.stringify(cursor);
-        const cached = this.get(cursorKey, rule);
+    return ruleMatch(textMatch.cursor, Token.text(textMatch.text, cursorKey));
+  }
 
-        if (cached !== undefined) {
-            return cached;
-        }
+  rule(cursor: Cursor, rule: Rule): RuleMatch | null {
+    const cursorKey = this.sequence.stringify(cursor);
+    const cached = this.get(cursorKey, rule);
 
-        const match = rule.match(cursor, this);
-        this.set(cursorKey, rule, match);
-        return match;
+    if (cached !== undefined) {
+      return cached;
     }
 
-    /** Gets a match for a position and rule in the cache. */
-    get(cursorKey: string, rule: Rule): RuleMatch | null | undefined {
-        const cursorMap = this.cache.get(cursorKey);
+    const match = rule.match(cursor, this);
+    this.set(cursorKey, rule, match);
+    return match;
+  }
 
-        if (!cursorMap) {
-            return undefined;
-        }
+  /** Gets a match for a position and rule in the cache. */
+  get(cursorKey: string, rule: Rule): RuleMatch | null | undefined {
+    const cursorMap = this.cache.get(cursorKey);
 
-        const cached = cursorMap.get(rule);
-        return cached
-            ? { cursor: cached.cursor, token: cached.token?.clone() }
-            : cached;
+    if (!cursorMap) {
+      return undefined;
     }
 
-    /** Sets a match for a position and rule in the cache. */
-    set(cursorKey: string, rule: Rule, match: RuleMatch | null) {
-        let cursorMap = this.cache.get(cursorKey);
+    const cached = cursorMap.get(rule);
+    return cached
+      ? {cursor: cached.cursor, token: cached.token?.clone()}
+      : cached;
+  }
 
-        if (!cursorMap) {
-            cursorMap = new Map<Rule, RuleMatch | null>();
-            this.cache.set(cursorKey, cursorMap);
-        }
+  /** Sets a match for a position and rule in the cache. */
+  set(cursorKey: string, rule: Rule, match: RuleMatch | null) {
+    let cursorMap = this.cache.get(cursorKey);
 
-        if (match) {
-            match = { cursor: match.cursor, token: match.token?.clone() };
-        }
-
-        cursorMap.set(rule, match);
+    if (!cursorMap) {
+      cursorMap = new Map<Rule, RuleMatch | null>();
+      this.cache.set(cursorKey, cursorMap);
     }
 
-    constructor(sequence: Sequence) {
-        this.sequence = sequence;
+    if (match) {
+      match = {cursor: match.cursor, token: match.token?.clone()};
     }
 
-    static from(text: string, file: string): Context {
-        return new Context(Sequence.from(text, file));
-    }
+    cursorMap.set(rule, match);
+  }
+
+  constructor(sequence: Sequence) {
+    this.sequence = sequence;
+  }
+
+  static from(text: string, file: string): Context {
+    return new Context(Sequence.from(text, file));
+  }
 }
 
 type FlexRule = string | RegExp | Rule;
 
 function rulifyOne(rule: FlexRule): Rule {
-    if (typeof rule === 'string') {
-        return literal(rule);
-    }
+  if (typeof rule === 'string') {
+    return literal(rule);
+  }
 
-    if (rule instanceof RegExp) {
-        return regex(rule);
-    }
+  if (rule instanceof RegExp) {
+    return regex(rule);
+  }
 
-    return rule;
+  return rule;
 }
 
 function rulifyAll(rules: FlexRule[]): Rule[] {
-    return rules.map(r => rulifyOne(r));
+  return rules.map((r) => rulifyOne(r));
 }
 
 export class LiteralRule extends Rule {
-    readonly matcher: TextMatcher;
-    readonly literals: string[];
+  readonly matcher: TextMatcher;
+  readonly literals: string[];
 
-    match(cursor: Cursor, context: Context): RuleMatch | null {
-        return context.text(cursor, this.matcher);
-    }
+  match(cursor: Cursor, context: Context): RuleMatch | null {
+    return context.text(cursor, this.matcher);
+  }
 
-    constructor(literals: string[]) {
-        super();
+  constructor(literals: string[]) {
+    super();
 
-        this.matcher = createStringTextMatcher(...literals);
-        this.literals = literals;
-    }
+    this.matcher = createStringTextMatcher(...literals);
+    this.literals = literals;
+  }
 }
 
 export function literal(...literals: string[]): Rule {
-    return new LiteralRule(literals);
+  return new LiteralRule(literals);
 }
 
 export class RegExpRule extends Rule {
-    readonly matcher: TextMatcher;
-    readonly patterns: RegExp[];
+  readonly matcher: TextMatcher;
+  readonly patterns: RegExp[];
 
-    match(cursor: Cursor, context: Context): RuleMatch | null {
-        return context.text(cursor, this.matcher);
-    }
+  match(cursor: Cursor, context: Context): RuleMatch | null {
+    return context.text(cursor, this.matcher);
+  }
 
-    constructor(patterns: RegExp[]) {
-        super();
+  constructor(patterns: RegExp[]) {
+    super();
 
-        this.matcher = createRegExpTextMatcher(...patterns);
-        this.patterns = patterns;
-    }
+    this.matcher = createRegExpTextMatcher(...patterns);
+    this.patterns = patterns;
+  }
 }
 
 export function regex(...patterns: RegExp[]): Rule {
-    return new RegExpRule(patterns)
+  return new RegExpRule(patterns);
 }
 
 export class SequenceRule extends Rule {
-    readonly rules: Rule[];
+  readonly rules: Rule[];
 
-    match(cursor: Cursor, context: Context): RuleMatch | null {
-        const matches: RuleMatch[] = [];
-        for (const rule of this.rules) {
-            const match = context.rule(cursor, rule);
-            if (!match) {
-                return null;
-            }
-            matches.push(match);
-            cursor = match.cursor;
-        }
-
-        return ruleMatch(cursor, matches);
+  match(cursor: Cursor, context: Context): RuleMatch | null {
+    const matches: RuleMatch[] = [];
+    for (const rule of this.rules) {
+      const match = context.rule(cursor, rule);
+      if (!match) {
+        return null;
+      }
+      matches.push(match);
+      cursor = match.cursor;
     }
 
-    constructor(rules: Rule[]) {
-        super();
+    return ruleMatch(cursor, matches);
+  }
 
-        this.rules = rules;
-    }
+  constructor(rules: Rule[]) {
+    super();
+
+    this.rules = rules;
+  }
 }
 
 export function sequence(first: FlexRule, ...rest: FlexRule[]): Rule {
-    const rules = rulifyAll([first, ...rest]);
+  const rules = rulifyAll([first, ...rest]);
 
-    if (rules.length === 0) {
-        throw new Error();
-    }
+  if (rules.length === 0) {
+    throw new Error();
+  }
 
-    if (rules.length === 1) {
-        return rules[0];
-    }
+  if (rules.length === 1) {
+    return rules[0];
+  }
 
-    return new SequenceRule(rules);
+  return new SequenceRule(rules);
 }
 
 export class UnionRule extends Rule {
-    readonly rules: Rule[];
+  readonly rules: Rule[];
 
-    match(cursor: Cursor, context: Context): RuleMatch | null {
+  match(cursor: Cursor, context: Context): RuleMatch | null {
+    let longest: RuleMatch | undefined = undefined;
 
-        let longest: RuleMatch | undefined = undefined;
+    for (const rule of this.rules) {
+      const match = context.rule(cursor, rule);
+      if (!match) {
+        continue;
+      }
 
-        for (const rule of this.rules) {
-            const match = context.rule(cursor, rule);
-            if (!match) {
-                continue;
-            }
+      if (!longest) {
+        longest = match;
+        continue;
+      }
 
-            if (!longest) {
-                longest = match;
-                continue;
-            }
+      if (match.cursor.segment > longest.cursor.segment) {
+        longest = match;
+        continue;
+      }
 
-            if (match.cursor.segment > longest.cursor.segment) {
-                longest = match;
-                continue;
-            }
-
-            if (match.cursor.segment === longest.cursor.segment &&
-                match.cursor.start > longest.cursor.start) {
-
-                longest = match;
-                continue;
-            }
-        }
-
-        if (!longest) {
-            return null;
-        }
-
-        return longest;
+      if (
+        match.cursor.segment === longest.cursor.segment &&
+        match.cursor.start > longest.cursor.start
+      ) {
+        longest = match;
+        continue;
+      }
     }
 
-    constructor(rules: Rule[]) {
-        super();
-
-        this.rules = rules;
+    if (!longest) {
+      return null;
     }
+
+    return longest;
+  }
+
+  constructor(rules: Rule[]) {
+    super();
+
+    this.rules = rules;
+  }
 }
 
 export function union(first: FlexRule, ...rest: FlexRule[]): Rule {
-    const rules = rulifyAll([first, ...rest]);
+  const rules = rulifyAll([first, ...rest]);
 
-    if (rules.length === 1) {
-        return rules[0];
-    }
+  if (rules.length === 1) {
+    return rules[0];
+  }
 
-    // const literals: LiteralRule[] = [];
-    // const regexps: RegExpRule[] = [];
-    // const others: RuleExec[] = [];
+  // const literals: LiteralRule[] = [];
+  // const regexps: RegExpRule[] = [];
+  // const others: RuleExec[] = [];
 
-    return new UnionRule(rules);
+  return new UnionRule(rules);
 }
 
 export class MaybeRule extends Rule {
-    readonly rule: Rule;
+  readonly rule: Rule;
 
-    match(cursor: Cursor, context: Context): RuleMatch | null {
-        const match = context.rule(cursor, this.rule);
-        if (match) {
-            // if (match.token) {
-            //     match.token = Token.symbol(match.token, '?');
-            // }
-            return match;
-        }
-
-        return {
-            cursor: cursor,
-        }
+  match(cursor: Cursor, context: Context): RuleMatch | null {
+    const match = context.rule(cursor, this.rule);
+    if (match) {
+      // if (match.token) {
+      //     match.token = Token.symbol(match.token, '?');
+      // }
+      return match;
     }
 
-    constructor(rule: Rule) {
-        super();
+    return {
+      cursor: cursor,
+    };
+  }
 
-        this.rule = rule;
-    }
+  constructor(rule: Rule) {
+    super();
+
+    this.rule = rule;
+  }
 }
 
 export function maybe(first: FlexRule, ...rest: FlexRule[]): Rule {
-    const rule = sequence(first, ...rest);
-    return new MaybeRule(rule);
+  const rule = sequence(first, ...rest);
+  return new MaybeRule(rule);
 }
 
 export class StarRule extends Rule {
-    readonly rule: Rule;
+  readonly rule: Rule;
 
-    match(cursor: Cursor, context: Context): RuleMatch | null {
-        const matches: RuleMatch[] = [];
-        let match = context.rule(cursor, this.rule);
-        while (match) {
-            matches.push(match);
-            cursor = match.cursor;
-            match = context.rule(cursor, this.rule);
-        }
-
-        return ruleMatch(cursor, matches /** , "*" */);
+  match(cursor: Cursor, context: Context): RuleMatch | null {
+    const matches: RuleMatch[] = [];
+    let match = context.rule(cursor, this.rule);
+    while (match) {
+      matches.push(match);
+      cursor = match.cursor;
+      match = context.rule(cursor, this.rule);
     }
 
-    constructor(rule: Rule) {
-        super();
+    return ruleMatch(cursor, matches /** , "*" */);
+  }
 
-        this.rule = rule;
-    }
+  constructor(rule: Rule) {
+    super();
+
+    this.rule = rule;
+  }
 }
 
 export function star(first: FlexRule, ...rest: FlexRule[]): Rule {
-    const rule = sequence(first, ...rest);
-    return new StarRule(rule);
+  const rule = sequence(first, ...rest);
+  return new StarRule(rule);
 }
 
 export class SymbolRule extends Rule {
-    readonly symbol: string;
-    private leftRecursiveRest?: Rule;
-    private rule?: Rule;
+  readonly symbol: string;
+  private leftRecursiveRest?: Rule;
+  private rule?: Rule;
 
-    isLeftRecursive() {
-        return !!this.leftRecursiveRest;
+  isLeftRecursive() {
+    return !!this.leftRecursiveRest;
+  }
+
+  get(): Rule | null {
+    return this.rule ?? null;
+  }
+
+  set(rule: Rule) {
+    if (this.rule) {
+      throw new Error(`Duplicate initialization of rule ${this.rule}`);
     }
 
-    get(): Rule | null {
-        return this.rule ?? null;
+    SymbolRule.symbolize(rule, this.symbol);
+
+    // Look for left recursion.
+    if (rule instanceof UnionRule) {
+      const recursive: Rule[] = [];
+      const nonrecursive: Rule[] = [];
+
+      for (const or of rule.rules) {
+        if (or instanceof SequenceRule && or.rules[0] === this) {
+          // Left recursion detected, remove the recursive element.
+          const [_, second, ...rest] = or.rules;
+          recursive.push(sequence(second, ...rest));
+          continue;
+        }
+        nonrecursive.push(or);
+      }
+
+      if (recursive.length !== 0) {
+        const [f1, ...r1] = recursive;
+        this.leftRecursiveRest = union(f1, ...r1);
+        const [f2, ...r2] = nonrecursive;
+        rule = union(f2, ...r2);
+      }
     }
 
-    set(rule: Rule) {
-        if (this.rule) {
-            throw new Error(`Duplicate initialization of rule ${this.rule}`);
-        }
+    this.rule = rule;
+  }
 
-        SymbolRule.symbolize(rule, this.symbol);
-
-        // Look for left recursion.
-        if (rule instanceof UnionRule) {
-            const recursive: Rule[] = [];
-            const nonrecursive: Rule[] = [];
-
-            for (const or of rule.rules) {
-                if (or instanceof SequenceRule && or.rules[0] === this) {
-                    // Left recursion detected, remove the recursive element.
-                    const [_, second, ...rest] = or.rules;
-                    recursive.push(sequence(second, ...rest));
-                    continue;
-                }
-                nonrecursive.push(or);
-            }
-
-            if (recursive.length !== 0) {
-                const [f1, ...r1] = recursive;
-                this.leftRecursiveRest = union(f1, ...r1);
-                const [f2, ...r2] = nonrecursive;
-                rule = union(f2, ...r2);
-            }
-        }
-
-        this.rule = rule;
+  match(cursor: Cursor, context: Context): RuleMatch | null {
+    if (!this.rule) {
+      throw new Error(`Uninitialized rule ${this.symbol}`);
     }
 
-    match(cursor: Cursor, context: Context): RuleMatch | null {
-        if (!this.rule) {
-            throw new Error(`Uninitialized rule ${this.symbol}`);
-        }
-
-        let match = context.rule(cursor, this.rule);
-        if (!match) {
-            return null;
-        }
-
-        if (!match.token) {
-            console.error('Left recursive match should have token.');
-            return match;
-        }
-
-        match.token = Token.symbol(match.token, this.symbol);
-
-        if (this.leftRecursiveRest) {
-            let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
-            while (restMatch) {
-                if (!restMatch.token) {
-                    console.error('Left recursive rest-match should have token.');
-                    break;
-                }
-
-                // Left recursion found.
-                if (!restMatch.token.children && !restMatch.token.text) {
-                    throw new Error('Successful left-recursion must emit tokens');
-                }
-
-                match = {
-                    token: restMatch.token.children
-                        ? Token.group([match.token!, ...restMatch.token.children], this.symbol)
-                        : Token.group([match.token!, restMatch.token], this.symbol),
-                    cursor: restMatch.cursor,
-                };
-
-                restMatch = context.rule(match.cursor, this.leftRecursiveRest);
-            }
-        }
-
-        return match;
+    let match = context.rule(cursor, this.rule);
+    if (!match) {
+      return null;
     }
 
-    constructor(name: string) {
-        super();
-
-        this.symbol = name;
+    if (!match.token) {
+      console.error('Left recursive match should have token.');
+      return match;
     }
 
-    static symbolize(rule: Rule, symbol: string) {
-        if (rule instanceof SymbolRule) {
-            return;
+    match.token = Token.symbol(match.token, this.symbol);
+
+    if (this.leftRecursiveRest) {
+      let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
+      while (restMatch) {
+        if (!restMatch.token) {
+          console.error('Left recursive rest-match should have token.');
+          break;
         }
 
-        rule.symbol = symbol;
-
-        if (rule instanceof StarRule || rule instanceof MaybeRule) {
-            SymbolRule.symbolize(rule.rule, symbol);
+        // Left recursion found.
+        if (!restMatch.token.children && !restMatch.token.text) {
+          throw new Error('Successful left-recursion must emit tokens');
         }
 
-        if (rule instanceof SequenceRule || rule instanceof UnionRule) {
-            for (const subrule of rule.rules) {
-                SymbolRule.symbolize(subrule, symbol);
-            }
-        }
+        match = {
+          token: restMatch.token.children
+            ? Token.group(
+                [match.token!, ...restMatch.token.children],
+                this.symbol
+              )
+            : Token.group([match.token!, restMatch.token], this.symbol),
+          cursor: restMatch.cursor,
+        };
+
+        restMatch = context.rule(match.cursor, this.leftRecursiveRest);
+      }
     }
+
+    return match;
+  }
+
+  constructor(name: string) {
+    super();
+
+    this.symbol = name;
+  }
+
+  static symbolize(rule: Rule, symbol: string) {
+    if (rule instanceof SymbolRule) {
+      return;
+    }
+
+    rule.symbol = symbol;
+
+    if (rule instanceof StarRule || rule instanceof MaybeRule) {
+      SymbolRule.symbolize(rule.rule, symbol);
+    }
+
+    if (rule instanceof SequenceRule || rule instanceof UnionRule) {
+      for (const subrule of rule.rules) {
+        SymbolRule.symbolize(subrule, symbol);
+      }
+    }
+  }
 }
 
 const registry = new Map<string, SymbolRule>();
 export function symbol(name: string): SymbolRule {
-    const rule = new SymbolRule(name);
+  const rule = new SymbolRule(name);
 
-    if (registry.has(name)) {
-        throw new Error(`Duplicate named rule ${rule}`);
-    }
+  if (registry.has(name)) {
+    throw new Error(`Duplicate named rule ${rule}`);
+  }
 
-    return rule;
+  return rule;
 }
 
 export function rule(name: string): SymbolRule {
-    const rule = registry.get(name);
+  const rule = registry.get(name);
 
-    if (!rule) {
-        throw new Error(`Duplicate named rule ${rule}`);
-    }
+  if (!rule) {
+    throw new Error(`Duplicate named rule ${rule}`);
+  }
 
-    return rule;
+  return rule;
 }
