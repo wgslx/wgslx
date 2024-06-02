@@ -27,8 +27,8 @@ interface TemplateList {
 }
 
 export function preprocess(text: string) {
-  const strippedText = stripComments(text);
-  const templateLists = discoverTemplates(strippedText);
+  text = stripComments(text);
+  const templateLists = discoverTemplates(text);
 
   text = text.replaceAll(/[<>]/g, (character, offset) => {
     switch (character) {

@@ -4,8 +4,8 @@ exports.discoverTemplates = exports.stripComments = exports.preprocess = void 0;
 const patterns_1 = require("./patterns");
 const util_1 = require("./util");
 function preprocess(text) {
-    const strippedText = stripComments(text);
-    const templateLists = discoverTemplates(strippedText);
+    text = stripComments(text);
+    const templateLists = discoverTemplates(text);
     text = text.replaceAll(/[<>]/g, (character, offset) => {
         switch (character) {
             case '<':
