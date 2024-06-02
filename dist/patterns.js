@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.matchBlockComment = exports.BLOCK_COMMENT_CLOSE = exports.BLOCK_COMMENT_OPEN = exports.matchLineEndingComment = exports.LINE_ENDING_COMMENT_REGEX = exports.matchIdentPatternToken = exports.IDENT_PATTERN_TOKEN_REGEX = exports.matchLiteral = exports.LITERAL_REGEX = exports.FLOAT_LITERAL_REGEX = exports.FLOAT_HEX_LITERAL_REGEX = exports.FLOAT_DEC_LITERAL_REGEX = exports.INT_LITERAL_REGEX = exports.INT_HEX_LITERAL_REGEX = exports.INT_DEC_LITERAL_REGEX = exports.BOOL_LITERAL_REGEX = exports.matchBlankspace = exports.LINE_BREAK_REGEX = exports.BLANKSPACE_REGEX = exports.createStringTextMatcher = exports.createRegExpTextMatcher = void 0;
 function createRegExpTextMatcher(...regexes) {
-    const stickRegexes = regexes.map(r => {
+    const stickRegexes = regexes.map((r) => {
         let flags = 'y';
         if (r.dotAll)
             flags += 's';
@@ -51,7 +51,10 @@ exports.matchBlankspace = createRegExpTextMatcher(exports.BLANKSPACE_REGEX);
 exports.BOOL_LITERAL_REGEX = [/true/, /false/];
 exports.INT_DEC_LITERAL_REGEX = [/0[iu]?/, /[1-9][0-9]*[iu]?/];
 exports.INT_HEX_LITERAL_REGEX = [/0[xX][0-9a-fA-F]+[iu]?/];
-exports.INT_LITERAL_REGEX = [...exports.INT_DEC_LITERAL_REGEX, ...exports.INT_HEX_LITERAL_REGEX];
+exports.INT_LITERAL_REGEX = [
+    ...exports.INT_DEC_LITERAL_REGEX,
+    ...exports.INT_HEX_LITERAL_REGEX,
+];
 exports.FLOAT_DEC_LITERAL_REGEX = [
     /0[fh]/,
     /[1-9][0-9]*[fh]/,
@@ -64,8 +67,15 @@ exports.FLOAT_HEX_LITERAL_REGEX = [
     /0[xX][0-9a-fA-F]+\.[0-9a-fA-F]*([pP][+-]?[0-9]+[fh]?)?/,
     /0[xX][0-9a-fA-F]+[pP][+-]?[0-9]+[fh]?/,
 ];
-exports.FLOAT_LITERAL_REGEX = [...exports.FLOAT_DEC_LITERAL_REGEX, ...exports.FLOAT_HEX_LITERAL_REGEX];
-exports.LITERAL_REGEX = [...exports.BOOL_LITERAL_REGEX, ...exports.INT_DEC_LITERAL_REGEX, ...exports.FLOAT_LITERAL_REGEX];
+exports.FLOAT_LITERAL_REGEX = [
+    ...exports.FLOAT_DEC_LITERAL_REGEX,
+    ...exports.FLOAT_HEX_LITERAL_REGEX,
+];
+exports.LITERAL_REGEX = [
+    ...exports.BOOL_LITERAL_REGEX,
+    ...exports.INT_DEC_LITERAL_REGEX,
+    ...exports.FLOAT_LITERAL_REGEX,
+];
 exports.matchLiteral = createRegExpTextMatcher(...exports.LITERAL_REGEX);
 exports.IDENT_PATTERN_TOKEN_REGEX = /([_\p{XID_Start}][\p{XID_Continue}]+)|([\p{XID_Start}])/u;
 exports.matchIdentPatternToken = createRegExpTextMatcher(exports.IDENT_PATTERN_TOKEN_REGEX);
@@ -76,7 +86,8 @@ exports.BLOCK_COMMENT_CLOSE = '*/';
 function matchBlockComment(text, start) {
     start = start ?? 0;
     let position = start;
-    if (text.substring(position, position + exports.BLOCK_COMMENT_OPEN.length) !== exports.BLOCK_COMMENT_OPEN) {
+    if (text.substring(position, position + exports.BLOCK_COMMENT_OPEN.length) !==
+        exports.BLOCK_COMMENT_OPEN) {
         return undefined;
     }
     position += exports.BLOCK_COMMENT_OPEN.length;

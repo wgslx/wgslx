@@ -8,7 +8,7 @@ function symbolName(symbol) {
     return symbol.symbol;
 }
 function symbolNames(symbols) {
-    return symbols.map(s => symbolName(s));
+    return symbols.map((s) => symbolName(s));
 }
 function assertType(token, symbol) {
     if (!token.hasSymbol(symbolName(symbol))) {
@@ -21,7 +21,7 @@ function ofType(...symbols) {
     return (token) => {
         if (token.symbol) {
             const symbols = token.symbol;
-            return names.some(n => symbols.includes(n));
+            return names.some((n) => symbols.includes(n));
         }
         return false;
     };

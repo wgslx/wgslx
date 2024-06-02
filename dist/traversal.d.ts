@@ -1,5 +1,5 @@
-import { SymbolRule } from "./rules";
-import { Token } from "./token";
+import { SymbolRule } from './rules';
+import { Token } from './token';
 type FlexSymbol = string | SymbolRule;
 export declare function assertType(token: Token, symbol: FlexSymbol): void;
 export declare function ofType(...symbols: FlexSymbol[]): (token: Token) => boolean;

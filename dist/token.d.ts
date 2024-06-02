@@ -1,19 +1,26 @@
-export interface TokenObject {
+export interface TokenJson {
     text?: string;
     symbol?: string;
     source?: string;
-    children?: TokenObject[];
+    destination?: string;
+    children?: TokenJson[];
+}
+export interface TokenRange {
+    file: string;
+    line: number;
+    column: number;
 }
 export declare class Token {
     id: number;
     text?: string;
     symbol?: string;
     source?: string;
+    destination?: string;
     children?: Token[];
     maybe: boolean;
     hasSymbol(symbol: string): boolean | "" | undefined;
     clone(): Token;
-    toObject(): TokenObject;
+    toObject(): TokenJson;
     toString(compact?: boolean): any;
     static text(text: string, source: string): Token;
     static group(children: Token[], symbol?: string): Token;

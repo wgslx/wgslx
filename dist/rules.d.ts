@@ -1,6 +1,6 @@
-import { TextMatcher } from "./patterns";
-import { Cursor, Sequence } from "./sequence";
-import { Token } from "./token";
+import { TextMatcher } from './patterns';
+import { Cursor, Sequence } from './sequence';
+import { Token } from './token';
 export interface RuleMatch {
     token?: Token;
     cursor: Cursor;

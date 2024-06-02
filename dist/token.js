@@ -6,6 +6,7 @@ class Token {
     text;
     symbol;
     source;
+    destination;
     children;
     maybe = false;
     hasSymbol(symbol) {
@@ -16,6 +17,7 @@ class Token {
         token.text = this.text;
         token.symbol = this.symbol;
         token.source = this.source;
+        token.destination = this.destination;
         token.children = this.children;
         token.maybe = this.maybe;
         return token;
@@ -24,19 +26,21 @@ class Token {
         const object = {};
         if (this.source)
             object.source = this.source;
+        if (this.destination)
+            object.destination = this.destination;
         if (this.text)
             object.text = this.text;
         if (this.symbol)
             object.symbol = this.symbol;
         if (this.children)
-            object.children = this.children.map(t => t.toObject());
+            object.children = this.children.map((t) => t.toObject());
         return object;
     }
     toString(compact = false) {
         if (this.children) {
             const text = this.children
-                .map(m => m?.toString())
-                .filter(t => t)
+                .map((m) => m?.toString())
+                .filter((t) => t)
                 .join(' ');
             if (compact) {
                 return text.replace(/([^\p{XID_Continue}] |[\p{XID_Continue}] (?![\p{XID_Continue}]))/gu, (match) => match[0]);

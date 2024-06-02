@@ -11,7 +11,7 @@ function ruleMatch(cursor, token, symbol) {
             token = undefined;
         }
         else {
-            token = token_1.Token.group(token.map(r => r.token).filter(util_1.isValued));
+            token = token_1.Token.group(token.map((r) => r.token).filter(util_1.isValued));
         }
     }
     if (token && symbol !== undefined) {
@@ -97,7 +97,7 @@ function rulifyOne(rule) {
     return rule;
 }
 function rulifyAll(rules) {
-    return rules.map(r => rulifyOne(r));
+    return rules.map((r) => rulifyOne(r));
 }
 class LiteralRule extends Rule {
     matcher;

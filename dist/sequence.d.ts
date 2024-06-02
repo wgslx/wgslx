@@ -1,4 +1,4 @@
-import { TextMatcher } from "./patterns";
+import { TextMatcher } from './patterns';
 export interface Segment {
     text: string;
     file: string;
