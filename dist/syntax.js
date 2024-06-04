@@ -207,8 +207,8 @@ exports.shortCircuitOrExpression.set((0, rules_1.union)(exports.relationalExpres
 exports.binaryOrExpression.set((0, rules_1.union)(exports.unaryExpression, (0, rules_1.sequence)(exports.binaryOrExpression, '|', exports.unaryExpression)));
 exports.binaryAndExpression.set((0, rules_1.union)(exports.unaryExpression, (0, rules_1.sequence)(exports.binaryAndExpression, '&', exports.unaryExpression)));
 exports.binaryXorExpression.set((0, rules_1.union)(exports.unaryExpression, (0, rules_1.sequence)(exports.binaryXorExpression, '^', exports.unaryExpression)));
-exports.bitwiseExpression.set((0, rules_1.union)((0, rules_1.sequence)(exports.binaryAndExpression, '&', exports.unaryExpression), (0, rules_1.sequence)(exports.binaryOrExpression, '|', exports.unaryExpression), (0, rules_1.sequence)(exports.binaryXorExpression, '^', exports.unaryExpression)));
-exports.expression.set((0, rules_1.union)(exports.relationalExpression, (0, rules_1.sequence)(exports.shortCircuitOrExpression, '||', exports.relationalExpression), (0, rules_1.sequence)(exports.shortCircuitAndExpression, '&&', exports.relationalExpression), exports.bitwiseExpression));
+exports.bitwiseExpression.set((0, rules_1.union)(exports.binaryAndExpression, exports.binaryOrExpression, exports.binaryXorExpression));
+exports.expression.set((0, rules_1.union)(exports.relationalExpression, exports.shortCircuitOrExpression, exports.shortCircuitAndExpression, exports.bitwiseExpression));
 exports.compoundStatement.set((0, rules_1.union)((0, rules_1.sequence)((0, rules_1.star)(exports.attribute), '{', (0, rules_1.star)(exports.statement), '}')));
 exports.assignmentStatement.set((0, rules_1.union)((0, rules_1.sequence)(exports.lhsExpression, '=', exports.expression), (0, rules_1.sequence)(exports.lhsExpression, exports.compoundAssignmentOperator, exports.expression), (0, rules_1.sequence)('_', '=', exports.expression)));
 exports.compoundAssignmentOperator.set((0, rules_1.union)('+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', SHIFT_RIGHT_ASSIGN, SHIFT_LEFT_ASSIGN));

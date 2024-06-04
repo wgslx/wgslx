@@ -8,6 +8,7 @@ import {
   sequence,
   maybe,
   star,
+  MatchResult,
 } from '../src/rules';
 import {Cursor} from '../src/sequence';
 
@@ -20,14 +21,14 @@ describe('rules', () => {
       class CountRule extends Rule {
         match(cursor: Cursor, context: Context) {
           times++;
-          return null;
+          return MatchResult.failure(cursor, this);
         }
       }
       const rule = new CountRule();
 
       const cursor = {
         segment: 0,
-        start: 0,
+        offset: 0,
       };
 
       context.rule(cursor, rule);
@@ -43,15 +44,16 @@ describe('rules', () => {
       const rule = literal('foo');
       const cursor = {
         segment: 0,
-        start: 0,
+        offset: 0,
       };
 
-      const match = context.rule(cursor, rule);
+      const {match, canaries} = context.rule(cursor, rule);
+      expect(match).toBeTruthy();
       expect(match?.cursor).toEqual({
         segment: 0,
-        start: 3,
+        offset: 3,
       });
-      expect(match?.token?.toObject()).toEqual({
+      expect(match?.token.toObject()).toEqual({
         text: 'foo',
         source: '0:0:file',
       });
@@ -63,18 +65,38 @@ describe('rules', () => {
     const rule = literal('foo', 'fooba', 'fo', 'bar');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeTruthy();
     expect(match?.cursor).toEqual({
       segment: 0,
-      start: 5,
+      offset: 5,
     });
-    expect(match?.token?.toObject()).toEqual({
+    expect(match?.token.toObject()).toEqual({
       text: 'fooba',
       source: '0:0:file',
     });
+  });
+
+  test('fails to match a literal', () => {
+    const context = Context.from('foobar', 'file');
+    const rule = literal('baz', 'qux');
+    const cursor = {
+      segment: 0,
+      offset: 0,
+    };
+
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeFalsy();
+    expect(canaries).toBeTruthy();
+    expect(canaries).toEqual([
+      {
+        cursor,
+        rules: [rule],
+      },
+    ]);
   });
 });
 
@@ -84,15 +106,16 @@ describe('regex', () => {
     const rule = regex(/foo/);
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeTruthy();
     expect(match?.cursor).toEqual({
       segment: 0,
-      start: 3,
+      offset: 3,
     });
-    expect(match?.token?.toObject()).toEqual({
+    expect(match?.token.toObject()).toEqual({
       text: 'foo',
       source: '0:0:file',
     });
@@ -103,18 +126,38 @@ describe('regex', () => {
     const rule = regex(/foo/, /fooba/, /fo/, /bar/);
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeTruthy();
     expect(match?.cursor).toEqual({
       segment: 0,
-      start: 5,
+      offset: 5,
     });
-    expect(match?.token?.toObject()).toEqual({
+    expect(match?.token.toObject()).toEqual({
       text: 'fooba',
       source: '0:0:file',
     });
+  });
+
+  test('fails to match a regex', () => {
+    const context = Context.from('foobar', 'file');
+    const rule = regex(/baz/, /qux/);
+    const cursor = {
+      segment: 0,
+      offset: 0,
+    };
+
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeFalsy();
+    expect(canaries).toBeTruthy();
+    expect(canaries).toEqual([
+      {
+        cursor,
+        rules: [rule],
+      },
+    ]);
   });
 });
 
@@ -124,15 +167,16 @@ describe('sequence', () => {
     const rule = sequence('quick', 'brown', 'fox');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeTruthy();
     expect(match?.cursor).toEqual({
       segment: 3,
-      start: 0,
+      offset: 0,
     });
-    expect(match?.token?.toObject()).toEqual({
+    expect(match?.token.toObject()).toEqual({
       children: [
         {
           text: 'quick',
@@ -147,19 +191,31 @@ describe('sequence', () => {
           source: '0:12:file',
         },
       ],
+      modifier: '()',
     });
   });
 
   test('fails sequence', () => {
     const context = Context.from('quick brown fox jumps', 'file');
-    const rule = sequence('quick', 'brown', 'box');
+    const rules = [literal('quick'), literal('brown'), literal('box')];
+    const rule = sequence(rules[0], ...rules.slice(1));
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
-    expect(match).toBe(null);
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeFalsy();
+    expect(canaries).toBeTruthy();
+    expect(canaries).toEqual([
+      {
+        cursor: {
+          segment: 2,
+          offset: 0,
+        },
+        rules: [rules[2], rule],
+      },
+    ]);
   });
 });
 
@@ -169,18 +225,23 @@ describe('maybe', () => {
     const rule = maybe('quick');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeTruthy();
     expect(match?.cursor).toEqual({
       segment: 1,
-      start: 0,
+      offset: 0,
     });
-    expect(match?.token?.toObject()).toEqual({
-      // symbol: '?',
-      text: 'quick',
-      source: '0:0:file',
+    expect(match?.token.toObject()).toEqual({
+      children: [
+        {
+          text: 'quick',
+          source: '0:0:file',
+        },
+      ],
+      modifier: '?',
     });
   });
 
@@ -189,26 +250,32 @@ describe('maybe', () => {
     const rule = maybe('quick', 'brown');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeTruthy();
     expect(match?.cursor).toEqual({
       segment: 2,
-      start: 0,
+      offset: 0,
     });
-    expect(match?.token?.toObject()).toEqual({
-      // symbol: '?',
+    expect(match?.token.toObject()).toEqual({
       children: [
         {
-          text: 'quick',
-          source: '0:0:file',
-        },
-        {
-          text: 'brown',
-          source: '0:6:file',
+          children: [
+            {
+              text: 'quick',
+              source: '0:0:file',
+            },
+            {
+              text: 'brown',
+              source: '0:6:file',
+            },
+          ],
+          modifier: '()',
         },
       ],
+      modifier: '?',
     });
   });
 
@@ -217,32 +284,39 @@ describe('maybe', () => {
     const rule = maybe('slow');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
     expect(match?.cursor).toEqual({
       segment: 0,
-      start: 0,
+      offset: 0,
     });
-    expect(match?.token).toBe(undefined);
+    expect(match?.token.toObject()).toEqual({
+      children: [],
+      modifier: '?',
+    });
   });
 });
+
 describe('star', () => {
   test('matches zero', () => {
     const context = Context.from('quick brown fox jumps', 'file');
     const rule = star('slow');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
     expect(match?.cursor).toEqual({
       segment: 0,
-      start: 0,
+      offset: 0,
     });
-    expect(match?.token?.toObject()).toBe(undefined);
+    expect(match?.token.toObject()).toEqual({
+      children: [],
+      modifier: '*',
+    });
   });
 
   test('matches single positive', () => {
@@ -250,22 +324,22 @@ describe('star', () => {
     const rule = star('quick');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
     expect(match?.cursor).toEqual({
       segment: 1,
-      start: 0,
+      offset: 0,
     });
-    expect(match?.token?.toObject()).toEqual({
-      // symbol: '*',
+    expect(match?.token.toObject()).toEqual({
       children: [
         {
           text: 'quick',
           source: '0:0:file',
         },
       ],
+      modifier: '*',
     });
   });
 
@@ -274,16 +348,15 @@ describe('star', () => {
     const rule = star('quick');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
     expect(match?.cursor).toEqual({
       segment: 3,
-      start: 0,
+      offset: 0,
     });
-    expect(match?.token?.toObject()).toEqual({
-      // symbol: '*',
+    expect(match?.token.toObject()).toEqual({
       children: [
         {
           text: 'quick',
@@ -298,7 +371,55 @@ describe('star', () => {
           source: '0:12:file',
         },
       ],
+      modifier: '*',
     });
+  });
+
+  test('creates canary for first unmatched', () => {
+    const context = Context.from('a a a a b', 'file');
+    const lit = literal('a');
+    const rule = star(lit);
+    const cursor = {
+      segment: 0,
+      offset: 0,
+    };
+
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match?.cursor).toEqual({
+      segment: 4,
+      offset: 0,
+    });
+    expect(match?.token.toObject()).toEqual({
+      children: [
+        {
+          text: 'a',
+          source: '0:0:file',
+        },
+        {
+          text: 'a',
+          source: '0:2:file',
+        },
+        {
+          text: 'a',
+          source: '0:4:file',
+        },
+        {
+          text: 'a',
+          source: '0:6:file',
+        },
+      ],
+      modifier: '*',
+    });
+    expect(canaries).toBeTruthy();
+    expect(canaries).toEqual([
+      {
+        cursor: {
+          segment: 4,
+          offset: 0,
+        },
+        rules: [lit, rule],
+      },
+    ]);
   });
 });
 
@@ -308,17 +429,71 @@ describe('union', () => {
     const rule = union('foo', /fooba/, 'fo', 'bar');
     const cursor = {
       segment: 0,
-      start: 0,
+      offset: 0,
     };
 
-    const match = context.rule(cursor, rule);
+    const {match, canaries} = context.rule(cursor, rule);
     expect(match?.cursor).toEqual({
       segment: 0,
-      start: 5,
+      offset: 5,
     });
-    expect(match?.token?.toObject()).toEqual({
+    expect(match?.token.toObject()).toEqual({
       text: 'fooba',
       source: '0:0:file',
     });
+  });
+
+  test('fails to match a rule', () => {
+    const context = Context.from('foobar', 'file');
+    const rules = [literal('baz'), literal('qux')];
+    const rule = union(rules[0], ...rules.slice(1));
+    const cursor = {
+      segment: 0,
+      offset: 0,
+    };
+
+    const {match, canaries} = context.rule(cursor, rule);
+    expect(match).toBeFalsy();
+    expect(canaries).toBeTruthy();
+    expect(canaries).toEqual([
+      {
+        cursor,
+        rules: [rules[0], rule],
+      },
+      {
+        cursor,
+        rules: [rules[1], rule],
+      },
+    ]);
+  });
+
+  test('passes through canaries', () => {
+    const context = Context.from('a a a b', 'file');
+    const litA = literal('a');
+    const litB = literal('b');
+    const sequenceRule = sequence(litA, litA, litB);
+    const starRule = star(litA);
+    const unionRule = union(sequenceRule, starRule);
+
+    const cursor = {
+      segment: 0,
+      offset: 0,
+    };
+
+    const {match, canaries} = context.rule(cursor, unionRule);
+    expect(match?.cursor).toEqual({
+      segment: 3,
+      offset: 0,
+    });
+    expect(canaries).toBeTruthy();
+    expect(canaries).toEqual([
+      {
+        cursor: {
+          segment: 3,
+          offset: 0,
+        },
+        rules: [litA, starRule, unionRule],
+      },
+    ]);
   });
 });

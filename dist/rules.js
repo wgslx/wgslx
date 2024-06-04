@@ -1,52 +1,75 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rule = exports.symbol = exports.SymbolRule = exports.star = exports.StarRule = exports.maybe = exports.MaybeRule = exports.union = exports.UnionRule = exports.sequence = exports.SequenceRule = exports.regex = exports.RegExpRule = exports.literal = exports.LiteralRule = exports.Context = exports.Rule = exports.ruleMatch = void 0;
+exports.rule = exports.symbol = exports.SymbolRule = exports.star = exports.StarRule = exports.maybe = exports.MaybeRule = exports.union = exports.UnionRule = exports.sequence = exports.SequenceRule = exports.regex = exports.RegExpRule = exports.literal = exports.LiteralRule = exports.Rule = exports.Context = exports.MatchResult = void 0;
 const patterns_1 = require("./patterns");
 const sequence_1 = require("./sequence");
 const token_1 = require("./token");
-const util_1 = require("./util");
-function ruleMatch(cursor, token, symbol) {
-    if (Array.isArray(token)) {
-        if (token.length === 0) {
-            token = undefined;
+class MatchResult {
+    match;
+    canaries;
+    clone() {
+        const result = new MatchResult();
+        if (this.match) {
+            result.match = {
+                token: this.match.token.clone(),
+                cursor: this.match.cursor,
+            };
         }
-        else {
-            token = token_1.Token.group(token.map((r) => r.token).filter(util_1.isValued));
+        if (this.canaries) {
+            result.canaries = this.canaries.map((c) => ({
+                rules: [...c.rules],
+                cursor: c.cursor,
+            }));
         }
+        return result;
     }
-    if (token && symbol !== undefined) {
-        token = token_1.Token.symbol(token, symbol);
+    static success(cursor, token) {
+        const result = new MatchResult();
+        result.match = { token, cursor };
+        return result;
     }
-    return { token, cursor };
+    static successFrom(rule, match, canaries) {
+        const result = new MatchResult();
+        result.match = match;
+        if (canaries) {
+            result.canaries = canaries
+                .filter((c) => (0, sequence_1.cursorGreaterOrEqualThan)(c.cursor, match.cursor))
+                .map((c) => ({
+                rules: [...c.rules, rule],
+                cursor: c.cursor,
+            }));
+        }
+        return result;
+    }
+    static failure(cursor, rule) {
+        const result = new MatchResult();
+        result.canaries = [{ rules: [rule], cursor }];
+        return result;
+    }
+    static failureFrom(rule, canaries) {
+        const result = new MatchResult();
+        if (!canaries || canaries.length === 0) {
+            throw new Error('Expected canaries');
+        }
+        result.canaries = canaries.map((c) => ({
+            rules: [...c.rules, rule],
+            cursor: c.cursor,
+        }));
+        return result;
+    }
 }
-exports.ruleMatch = ruleMatch;
-class Rule {
-    symbol;
-    matchAll(text, file) {
-        const context = Context.from(text, file);
-        const cursor = (0, sequence_1.Cursor)(0);
-        const match = this.match(cursor, context);
-        if (match?.token) {
-            if (match.cursor.segment < context.sequence.segments.length) {
-                console.log(match.cursor.segment, context.sequence);
-                return null;
-            }
-            return match.token;
-        }
-        return null;
-    }
-}
-exports.Rule = Rule;
+exports.MatchResult = MatchResult;
 class Context {
     sequence;
     cache = new Map();
-    text(cursor, matcher) {
+    text(cursor, textRule) {
         const cursorKey = this.sequence.stringify(cursor);
-        const textMatch = this.sequence.match(cursor, matcher);
+        const textMatch = this.sequence.match(cursor, textRule.matcher);
         if (!textMatch) {
-            return null;
+            return MatchResult.failure(cursor, textRule);
         }
-        return ruleMatch(textMatch.cursor, token_1.Token.text(textMatch.text, cursorKey));
+        const match = MatchResult.success(textMatch.cursor, token_1.Token.text(textMatch.text, cursorKey));
+        return match;
     }
     rule(cursor, rule) {
         const cursorKey = this.sequence.stringify(cursor);
@@ -64,20 +87,18 @@ class Context {
             return undefined;
         }
         const cached = cursorMap.get(rule);
-        return cached
-            ? { cursor: cached.cursor, token: cached.token?.clone() }
-            : cached;
+        if (!cached) {
+            return undefined;
+        }
+        return cached.clone();
     }
-    set(cursorKey, rule, match) {
+    set(cursorKey, rule, matchResult) {
         let cursorMap = this.cache.get(cursorKey);
         if (!cursorMap) {
             cursorMap = new Map();
             this.cache.set(cursorKey, cursorMap);
         }
-        if (match) {
-            match = { cursor: match.cursor, token: match.token?.clone() };
-        }
-        cursorMap.set(rule, match);
+        cursorMap.set(rule, matchResult.clone());
     }
     constructor(sequence) {
         this.sequence = sequence;
@@ -85,8 +106,31 @@ class Context {
     static from(text, file) {
         return new Context(sequence_1.Sequence.from(text, file));
     }
+    matchSource(rootRule) {
+        const cursor = (0, sequence_1.Cursor)(0);
+        const matchResult = rootRule.match(cursor, this);
+        if (matchResult.canaries) {
+            matchResult.canaries.sort((a, b) => -(0, sequence_1.compareCursor)(a.cursor, b.cursor));
+        }
+        if (!matchResult.match) {
+            return matchResult;
+        }
+        const { match } = matchResult;
+        if (match.cursor.segment < this.sequence.segments.length) {
+            return MatchResult.failure(cursor, rootRule);
+        }
+        return matchResult;
+    }
+    static matchSource(text, file, rootRule) {
+        const context = Context.from(text, file);
+        return context.matchSource(rootRule);
+    }
 }
 exports.Context = Context;
+class Rule {
+    symbol;
+}
+exports.Rule = Rule;
 function rulifyOne(rule) {
     if (typeof rule === 'string') {
         return literal(rule);
@@ -103,7 +147,7 @@ class LiteralRule extends Rule {
     matcher;
     literals;
     match(cursor, context) {
-        return context.text(cursor, this.matcher);
+        return context.text(cursor, this);
     }
     constructor(literals) {
         super();
@@ -120,7 +164,7 @@ class RegExpRule extends Rule {
     matcher;
     patterns;
     match(cursor, context) {
-        return context.text(cursor, this.matcher);
+        return context.text(cursor, this);
     }
     constructor(patterns) {
         super();
@@ -136,16 +180,20 @@ exports.regex = regex;
 class SequenceRule extends Rule {
     rules;
     match(cursor, context) {
-        const matches = [];
+        const tokens = [];
         for (const rule of this.rules) {
-            const match = context.rule(cursor, rule);
-            if (!match) {
-                return null;
+            const matchResult = context.rule(cursor, rule);
+            if (!matchResult.match) {
+                if (!matchResult.canaries) {
+                    throw new Error('Expected match or canaries');
+                }
+                return MatchResult.failureFrom(this, matchResult.canaries);
             }
-            matches.push(match);
-            cursor = match.cursor;
+            tokens.push(matchResult.match.token);
+            cursor = matchResult.match.cursor;
         }
-        return ruleMatch(cursor, matches);
+        const token = token_1.Token.group(tokens, '()');
+        return MatchResult.success(cursor, token);
     }
     constructor(rules) {
         super();
@@ -167,34 +215,41 @@ exports.sequence = sequence;
 class UnionRule extends Rule {
     rules;
     match(cursor, context) {
-        let longest = undefined;
+        let longestMatch = undefined;
+        let combinedCanaries = [];
         for (const rule of this.rules) {
-            const match = context.rule(cursor, rule);
-            if (!match) {
+            const matchResult = context.rule(cursor, rule);
+            if (!matchResult.match) {
+                if (!matchResult.canaries) {
+                    throw new Error('Expected match or canaries');
+                }
+                combinedCanaries.push(...matchResult.canaries);
                 continue;
             }
-            if (!longest) {
-                longest = match;
+            const { match, canaries } = matchResult;
+            if (canaries) {
+                combinedCanaries.push(...canaries);
+            }
+            if (!longestMatch) {
+                longestMatch = match;
                 continue;
             }
-            if (match.cursor.segment > longest.cursor.segment) {
-                longest = match;
-                continue;
-            }
-            if (match.cursor.segment === longest.cursor.segment &&
-                match.cursor.start > longest.cursor.start) {
-                longest = match;
+            if ((0, sequence_1.cursorGreaterThan)(match.cursor, longestMatch.cursor)) {
+                longestMatch = match;
                 continue;
             }
         }
-        if (!longest) {
-            return null;
+        if (!longestMatch) {
+            return MatchResult.failureFrom(this, combinedCanaries);
         }
-        return longest;
+        return MatchResult.successFrom(this, longestMatch, combinedCanaries);
     }
     constructor(rules) {
         super();
         this.rules = rules;
+        if (this.rules.length === 0) {
+            throw new Error('Expected at least one rule in a union.');
+        }
     }
 }
 exports.UnionRule = UnionRule;
@@ -209,13 +264,13 @@ exports.union = union;
 class MaybeRule extends Rule {
     rule;
     match(cursor, context) {
-        const match = context.rule(cursor, this.rule);
-        if (match) {
-            return match;
-        }
-        return {
-            cursor: cursor,
+        const matchResult = context.rule(cursor, this.rule);
+        const token = matchResult.match ? [matchResult.match.token] : [];
+        const match = {
+            token: token_1.Token.group(token, '?'),
+            cursor: matchResult.match ? matchResult.match.cursor : cursor,
         };
+        return MatchResult.successFrom(this, match, matchResult.canaries);
     }
     constructor(rule) {
         super();
@@ -231,14 +286,18 @@ exports.maybe = maybe;
 class StarRule extends Rule {
     rule;
     match(cursor, context) {
-        const matches = [];
-        let match = context.rule(cursor, this.rule);
-        while (match) {
-            matches.push(match);
-            cursor = match.cursor;
-            match = context.rule(cursor, this.rule);
+        const tokens = [];
+        let matchResult = context.rule(cursor, this.rule);
+        while (matchResult.match) {
+            tokens.push(matchResult.match.token);
+            cursor = matchResult.match.cursor;
+            matchResult = context.rule(cursor, this.rule);
         }
-        return ruleMatch(cursor, matches);
+        const result = {
+            token: token_1.Token.group(tokens, '*'),
+            cursor,
+        };
+        return MatchResult.successFrom(this, result, matchResult.canaries);
     }
     constructor(rule) {
         super();
@@ -290,35 +349,29 @@ class SymbolRule extends Rule {
         if (!this.rule) {
             throw new Error(`Uninitialized rule ${this.symbol}`);
         }
-        let match = context.rule(cursor, this.rule);
-        if (!match) {
-            return null;
+        let matchResult = context.rule(cursor, this.rule);
+        if (!matchResult.match) {
+            return MatchResult.failureFrom(this, matchResult.canaries);
         }
-        if (!match.token) {
-            console.error('Left recursive match should have token.');
-            return match;
-        }
+        let match = matchResult.match;
         match.token = token_1.Token.symbol(match.token, this.symbol);
         if (this.leftRecursiveRest) {
-            let restMatch = context.rule(match.cursor, this.leftRecursiveRest);
-            while (restMatch) {
-                if (!restMatch.token) {
-                    console.error('Left recursive rest-match should have token.');
-                    break;
-                }
+            matchResult = context.rule(match.cursor, this.leftRecursiveRest);
+            while (matchResult.match) {
+                let restMatch = matchResult.match;
                 if (!restMatch.token.children && !restMatch.token.text) {
                     throw new Error('Successful left-recursion must emit tokens');
                 }
                 match = {
                     token: restMatch.token.children
-                        ? token_1.Token.group([match.token, ...restMatch.token.children], this.symbol)
-                        : token_1.Token.group([match.token, restMatch.token], this.symbol),
+                        ? token_1.Token.group([match.token, ...restMatch.token.children], 'left-recursion', this.symbol)
+                        : token_1.Token.group([match.token, restMatch.token], 'left-recursion', this.symbol),
                     cursor: restMatch.cursor,
                 };
-                restMatch = context.rule(match.cursor, this.leftRecursiveRest);
+                matchResult = context.rule(match.cursor, this.leftRecursiveRest);
             }
         }
-        return match;
+        return MatchResult.successFrom(this, match, matchResult.canaries);
     }
     constructor(name) {
         super();

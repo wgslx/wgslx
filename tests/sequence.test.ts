@@ -43,18 +43,18 @@ describe('sequence', () => {
       const matcher = createStringTextMatcher('abra');
       const cursor: Cursor = {
         segment: 0,
-        start: 0,
+        offset: 0,
       };
 
       expect(sequence.match(cursor, matcher)).toEqual({
         text: 'abra',
         segment: 0,
-        start: 0,
+        offset: 0,
         end: 4,
 
         cursor: {
           segment: 0,
-          start: 4,
+          offset: 4,
         },
       });
     });
@@ -64,18 +64,18 @@ describe('sequence', () => {
       const matcher = createStringTextMatcher('kadabra');
       const cursor: Cursor = {
         segment: 0,
-        start: 4,
+        offset: 4,
       };
 
       expect(sequence.match(cursor, matcher)).toEqual({
         text: 'kadabra',
         segment: 0,
-        start: 4,
+        offset: 4,
         end: 11,
 
         cursor: {
           segment: 1,
-          start: 0,
+          offset: 0,
         },
       });
     });

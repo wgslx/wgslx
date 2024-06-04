@@ -372,15 +372,15 @@ binary_xor_expression :
 ;
 
 bitwise_expression :
-  binary_and_expression '&' unary_expression
-| binary_or_expression '|' unary_expression
-| binary_xor_expression '^' unary_expression
+  binary_and_expression
+| binary_or_expression
+| binary_xor_expression
 ;
 
 expression :
   relational_expression
-| short_circuit_or_expression '||' relational_expression
-| short_circuit_and_expression '&&' relational_expression
+| short_circuit_or_expression
+| short_circuit_and_expression
 | bitwise_expression
 ;
 

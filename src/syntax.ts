@@ -506,15 +506,15 @@ binaryXorExpression.set(union(
 ));
 
 bitwiseExpression.set(union(
-	sequence(binaryAndExpression, '&', unaryExpression),
-	sequence(binaryOrExpression, '|', unaryExpression),
-	sequence(binaryXorExpression, '^', unaryExpression),
+	binaryAndExpression,
+	binaryOrExpression,
+	binaryXorExpression,
 ));
 
 expression.set(union(
 	relationalExpression,
-	sequence(shortCircuitOrExpression, '||', relationalExpression),
-	sequence(shortCircuitAndExpression, '&&', relationalExpression),
+	shortCircuitOrExpression,
+	shortCircuitAndExpression,
 	bitwiseExpression,
 ));
 

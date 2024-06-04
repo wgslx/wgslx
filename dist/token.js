@@ -1,29 +1,33 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Multimap = exports.Token = void 0;
+exports.Multimap = exports.Token = exports.TokenOptions = void 0;
+class TokenOptions {
+    symbol;
+    modifier;
+}
+exports.TokenOptions = TokenOptions;
 class Token {
     id;
     text;
     symbol;
-    grouping;
+    modifier;
     source;
     destination;
     children;
-    maybe = false;
     clone() {
         const token = new Token();
         if (this.text)
             token.text = this.text;
         if (this.symbol)
             token.symbol = this.symbol;
+        if (this.modifier)
+            token.modifier = this.modifier;
         if (this.source)
             token.source = this.source;
         if (this.destination)
             token.destination = this.destination;
         if (this.children)
             token.children = this.children;
-        if (this.maybe)
-            token.maybe = this.maybe;
         return token;
     }
     toObject() {
@@ -36,6 +40,8 @@ class Token {
             object.text = this.text;
         if (this.symbol)
             object.symbol = this.symbol;
+        if (this.modifier)
+            object.modifier = this.modifier;
         if (this.children)
             object.children = this.children.map((t) => t.toObject());
         return object;
@@ -59,9 +65,10 @@ class Token {
         token.text = text;
         return token;
     }
-    static group(children, symbol) {
+    static group(children, modifier, symbol) {
         const token = new Token();
         token.children = children;
+        token.modifier = modifier;
         if (symbol) {
             token.symbol = symbol;
         }

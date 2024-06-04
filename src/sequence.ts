@@ -26,11 +26,51 @@ export interface Segment {
 /** Cursor pointing to a specific location in a code sequence. */
 export interface Cursor {
   readonly segment: number;
-  readonly start: number;
+  readonly offset: number;
 }
 
 export function Cursor(segment: number, start = 0): Cursor {
-  return {segment, start};
+  return {segment, offset: start};
+}
+
+export function compareCursor(a: Cursor, b: Cursor): number {
+  if (a.segment === b.segment) {
+    return a.offset - b.offset;
+  }
+
+  return a.segment - b.segment;
+}
+
+export function cursorGreaterThan(candidate: Cursor, current: Cursor): boolean {
+  if (candidate.segment > current.segment) {
+    return true;
+  }
+
+  if (candidate.segment === current.segment) {
+    return candidate.offset > current.offset;
+  }
+
+  return false;
+}
+
+export function cursorGreaterOrEqualThan(
+  candidate: Cursor,
+  current: Cursor
+): boolean {
+  if (candidate.segment >= current.segment) {
+    return true;
+  }
+
+  if (candidate.segment === current.segment) {
+    return candidate.offset >= current.offset;
+  }
+
+  return false;
+}
+
+export interface SourceCursor {
+  readonly line: number;
+  readonly column: number;
 }
 
 /** Match in a code sequence containing the match and the advanced cursor. */
@@ -42,7 +82,7 @@ export interface TextMatch {
   readonly segment: number;
 
   /** The starting position of the match inside the sequence. */
-  readonly start: number;
+  readonly offset: number;
 
   /** The ending position of the match inside the sequence. */
   readonly end: number;
@@ -66,7 +106,16 @@ export class Sequence {
     }
 
     const segment = this.segments[cursor.segment];
-    return `${segment.line}:${segment.column + cursor.start}:${segment.file}`;
+    return `${segment.line}:${segment.column + cursor.offset}:${segment.file}`;
+  }
+
+  toSourceCursor(cursor: Cursor): SourceCursor {
+    if (cursor.segment >= this.segments.length) {
+      return {line: -1, column: -1};
+    }
+
+    const segment = this.segments[cursor.segment];
+    return {line: segment.line + 1, column: segment.column + cursor.offset + 1};
   }
 
   /** Tries to match the text matcher at the given position. */
@@ -76,7 +125,7 @@ export class Sequence {
     }
 
     const segment = this.segments[cursor.segment];
-    const match = matcher(segment.text, cursor.start);
+    const match = matcher(segment.text, cursor.offset);
 
     // Match not found
     if (!match) {
@@ -85,25 +134,25 @@ export class Sequence {
 
     let next: Cursor;
 
-    if (cursor.start + match.length === segment.text.length) {
+    if (cursor.offset + match.length === segment.text.length) {
       // Match found and takes the rest of the segment.
       next = {
         segment: cursor.segment + 1,
-        start: 0,
+        offset: 0,
       };
     } else {
       // Match was found and there is more in this segment.
       next = {
         segment: cursor.segment,
-        start: cursor.start + match.length,
+        offset: cursor.offset + match.length,
       };
     }
 
     return {
       text: match,
       segment: cursor.segment,
-      start: cursor.start,
-      end: cursor.start + match.length,
+      offset: cursor.offset,
+      end: cursor.offset + match.length,
 
       cursor: next,
     };

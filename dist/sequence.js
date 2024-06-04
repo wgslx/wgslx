@@ -1,13 +1,40 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Sequence = exports.Cursor = void 0;
+exports.Sequence = exports.cursorGreaterOrEqualThan = exports.cursorGreaterThan = exports.compareCursor = exports.Cursor = void 0;
 const preprocess_1 = require("./preprocess");
 const BLANKSPACE_GLOBAL_REGEX = /[\u0020\u0009\u000a\u000b\u000c\u000d\u0085\u200e\u200f\u2028\u2029]+/g;
 const LINE_BREAK_REGEX = /(?:\u000d\u000a?|[\u000a\u000b\u000c\u0085\u2028\u2029])/;
 function Cursor(segment, start = 0) {
-    return { segment, start };
+    return { segment, offset: start };
 }
 exports.Cursor = Cursor;
+function compareCursor(a, b) {
+    if (a.segment === b.segment) {
+        return a.offset - b.offset;
+    }
+    return a.segment - b.segment;
+}
+exports.compareCursor = compareCursor;
+function cursorGreaterThan(candidate, current) {
+    if (candidate.segment > current.segment) {
+        return true;
+    }
+    if (candidate.segment === current.segment) {
+        return candidate.offset > current.offset;
+    }
+    return false;
+}
+exports.cursorGreaterThan = cursorGreaterThan;
+function cursorGreaterOrEqualThan(candidate, current) {
+    if (candidate.segment >= current.segment) {
+        return true;
+    }
+    if (candidate.segment === current.segment) {
+        return candidate.offset >= current.offset;
+    }
+    return false;
+}
+exports.cursorGreaterOrEqualThan = cursorGreaterOrEqualThan;
 class Sequence {
     segments;
     stringify(cursor) {
@@ -15,35 +42,42 @@ class Sequence {
             return 'eof';
         }
         const segment = this.segments[cursor.segment];
-        return `${segment.line}:${segment.column + cursor.start}:${segment.file}`;
+        return `${segment.line}:${segment.column + cursor.offset}:${segment.file}`;
+    }
+    toSourceCursor(cursor) {
+        if (cursor.segment >= this.segments.length) {
+            return { line: -1, column: -1 };
+        }
+        const segment = this.segments[cursor.segment];
+        return { line: segment.line + 1, column: segment.column + cursor.offset + 1 };
     }
     match(cursor, matcher) {
         if (cursor.segment >= this.segments.length) {
             return null;
         }
         const segment = this.segments[cursor.segment];
-        const match = matcher(segment.text, cursor.start);
+        const match = matcher(segment.text, cursor.offset);
         if (!match) {
             return null;
         }
         let next;
-        if (cursor.start + match.length === segment.text.length) {
+        if (cursor.offset + match.length === segment.text.length) {
             next = {
                 segment: cursor.segment + 1,
-                start: 0,
+                offset: 0,
             };
         }
         else {
             next = {
                 segment: cursor.segment,
-                start: cursor.start + match.length,
+                offset: cursor.offset + match.length,
             };
         }
         return {
             text: match,
             segment: cursor.segment,
-            start: cursor.start,
-            end: cursor.start + match.length,
+            offset: cursor.offset,
+            end: cursor.offset + match.length,
             cursor: next,
         };
     }

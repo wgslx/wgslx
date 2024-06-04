@@ -4,6 +4,8 @@ export interface TokenJson {
 
   symbol?: string;
 
+  modifier?: string;
+
   source?: string;
 
   destination?: string;
@@ -17,7 +19,13 @@ export interface TokenRange {
   column: number;
 }
 
+export class TokenOptions {
+  symbol?: string;
+  modifier?: string;
+}
+
 export class Token {
+  /** Execution unique identifier. */
   id: number;
 
   text?: string;
@@ -25,7 +33,7 @@ export class Token {
   symbol?: string;
 
   /** The method of grouping */
-  grouping?: string;
+  modifier?: string;
 
   source?: string;
 
@@ -33,16 +41,14 @@ export class Token {
 
   children?: Token[];
 
-  maybe: boolean = false;
-
   clone(): Token {
     const token = new Token();
     if (this.text) token.text = this.text;
     if (this.symbol) token.symbol = this.symbol;
+    if (this.modifier) token.modifier = this.modifier;
     if (this.source) token.source = this.source;
     if (this.destination) token.destination = this.destination;
-    if (this.children) token.children = this.children; // shallow
-    if (this.maybe) token.maybe = this.maybe;
+    if (this.children) token.children = this.children; // shallow copy
     return token;
   }
 
@@ -53,6 +59,7 @@ export class Token {
     if (this.destination) object.destination = this.destination;
     if (this.text) object.text = this.text;
     if (this.symbol) object.symbol = this.symbol;
+    if (this.modifier) object.modifier = this.modifier;
     if (this.children) object.children = this.children.map((t) => t.toObject());
 
     return object;
@@ -85,9 +92,10 @@ export class Token {
     return token;
   }
 
-  static group(children: Token[], symbol?: string): Token {
+  static group(children: Token[], modifier: string, symbol?: string): Token {
     const token = new Token();
     token.children = children;
+    token.modifier = modifier;
     if (symbol) {
       token.symbol = symbol;
     }

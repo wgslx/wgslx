@@ -53,6 +53,12 @@ describe('preprocess', () => {
 
       expect(stripComments(text)).toEqual('const a = 4; \n\n\nconst b = 2;');
     });
+
+    test('retains leading whitespace single line comments', () => {
+      expect(stripComments('\n\nconst a = 1; // comment')).toEqual(
+        '\n\nconst a = 1; '
+      );
+    });
   });
 
   describe('discoverTemplates', () => {

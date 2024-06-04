@@ -1,6 +1,6 @@
 import {postprocess} from './postprocess';
 import {preprocess} from './preprocess';
-import {SymbolRule} from './rules';
+import {Context, SymbolRule} from './rules';
 import {
   globalDecl,
   globalDirectiveExtended,
@@ -45,13 +45,43 @@ function tokenizeFile(
   rootSymbol: SymbolRule
 ): Token {
   source = preprocess(source);
-  const token = rootSymbol.matchAll(source, filePath);
+  const context = Context.from(source, filePath);
+  const matchResult = context.matchSource(rootSymbol);
 
-  if (!token) {
-    throw new Error('Failed to parse');
+  if (!matchResult.match) {
+    // Convert to a more readable error message.
+    if (!matchResult.canaries) {
+      throw new Error(`Failed to parse ${filePath} for unknown reasons.`);
+    }
+
+    const lines = source.split('\n');
+    const errors: string[] = [];
+    errors.push(`Failed to parse ${filePath}\n`);
+
+    for (let i = 0; i < matchResult.canaries.length; i++) {
+      const canary = matchResult.canaries[i];
+
+      const sourceCursor = context.sequence.toSourceCursor(canary.cursor);
+      const lineText = `${sourceCursor.line}: `;
+      // Create an ascii indicator for the error.
+      errors.push(
+        `#${i + 1}: ${filePath}:${sourceCursor.line}:${sourceCursor.column}`
+      );
+      errors.push(`    ${lineText}${lines[sourceCursor.line - 1]}`);
+      errors.push(
+        `    ${'-'.repeat(lineText.length + sourceCursor.column - 1)}^`
+      );
+
+      for (let j = 0; j < canary.rules.length; j++) {
+        const rule = canary.rules[j];
+        errors.push(`    @: ${rule.symbol}`);
+      }
+    }
+
+    throw new Error(errors.join('\n'));
   }
 
-  return token;
+  return matchResult.match.token;
 }
 
 class ImportContext {

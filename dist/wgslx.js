@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.compileWgslx = exports.DEFAULT_WGSLX_OPTIONS = void 0;
 const postprocess_1 = require("./postprocess");
 const preprocess_1 = require("./preprocess");
+const rules_1 = require("./rules");
 const syntax_1 = require("./syntax");
 const traversal_1 = require("./traversal");
 exports.DEFAULT_WGSLX_OPTIONS = Object.freeze({
@@ -12,11 +13,30 @@ exports.DEFAULT_WGSLX_OPTIONS = Object.freeze({
 });
 function tokenizeFile(source, filePath, rootSymbol) {
     source = (0, preprocess_1.preprocess)(source);
-    const token = rootSymbol.matchAll(source, filePath);
-    if (!token) {
-        throw new Error('Failed to parse');
+    const context = rules_1.Context.from(source, filePath);
+    const matchResult = context.matchSource(rootSymbol);
+    if (!matchResult.match) {
+        if (!matchResult.canaries) {
+            throw new Error(`Failed to parse ${filePath} for unknown reasons.`);
+        }
+        const lines = source.split('\n');
+        const errors = [];
+        errors.push(`Failed to parse ${filePath}\n`);
+        for (let i = 0; i < matchResult.canaries.length; i++) {
+            const canary = matchResult.canaries[i];
+            const sourceCursor = context.sequence.toSourceCursor(canary.cursor);
+            const lineText = `${sourceCursor.line}: `;
+            errors.push(`#${i + 1}: ${filePath}:${sourceCursor.line}:${sourceCursor.column}`);
+            errors.push(`    ${lineText}${lines[sourceCursor.line - 1]}`);
+            errors.push(`    ${'-'.repeat(lineText.length + sourceCursor.column - 1)}^`);
+            for (let j = 0; j < canary.rules.length; j++) {
+                const rule = canary.rules[j];
+                errors.push(`    @: ${rule.symbol}`);
+            }
+        }
+        throw new Error(errors.join('\n'));
     }
-    return token;
+    return matchResult.match.token;
 }
 class ImportContext {
     resolved = new Set();

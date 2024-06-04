@@ -1,8 +1,9 @@
-import {join, resolve, basename, dirname} from 'path';
+import {join, resolve, dirname} from 'path';
 import {readFileSync} from 'fs';
 
-import {Syntax, postprocess, preprocess} from '../src';
+import {Context, postprocess, preprocess} from '../src';
 import {ImportResolver, compileWgslx} from '../src';
+import {translationUnitExtended} from '../src/syntax';
 
 function testFile(inPath: string, outPath: string) {
   const inFullPath = join(__dirname, inPath);
@@ -12,10 +13,14 @@ function testFile(inPath: string, outPath: string) {
   const output = readFileSync(outFullPath, 'utf-8');
 
   const processed = preprocess(input);
-  const token = Syntax.translationUnitExtended.matchAll(processed, 'file');
-  expect(token).toBeTruthy();
-  const text = token!.toString();
-  const resolvedText = postprocess(token!);
+  const result = Context.matchSource(
+    processed,
+    'file',
+    translationUnitExtended
+  );
+  expect(result.match).toBeTruthy();
+  const text = result!.toString();
+  const resolvedText = postprocess(result.match!.token);
   expect(resolvedText).toEqual(output);
 }
 
