@@ -22,3 +22,4 @@ __exportStar(require("./traversal"), exports);
 __exportStar(require("./postprocess"), exports);
 __exportStar(require("./preprocess"), exports);
 exports.Syntax = require("./syntax");
+__exportStar(require("./wgslx"), exports);

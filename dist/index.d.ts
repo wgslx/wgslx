@@ -5,3 +5,4 @@ export * from './traversal';
 export * from './postprocess';
 export * from './preprocess';
 export * as Syntax from './syntax';
+export * from './wgslx';

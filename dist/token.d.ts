@@ -14,11 +14,11 @@ export declare class Token {
     id: number;
     text?: string;
     symbol?: string;
+    grouping?: string;
     source?: string;
     destination?: string;
     children?: Token[];
     maybe: boolean;
-    hasSymbol(symbol: string): boolean | "" | undefined;
     clone(): Token;
     toObject(): TokenJson;
     toString(compact?: boolean): any;

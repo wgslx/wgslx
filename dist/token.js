@@ -5,21 +5,25 @@ class Token {
     id;
     text;
     symbol;
+    grouping;
     source;
     destination;
     children;
     maybe = false;
-    hasSymbol(symbol) {
-        return this.symbol && this.symbol.includes(symbol);
-    }
     clone() {
         const token = new Token();
-        token.text = this.text;
-        token.symbol = this.symbol;
-        token.source = this.source;
-        token.destination = this.destination;
-        token.children = this.children;
-        token.maybe = this.maybe;
+        if (this.text)
+            token.text = this.text;
+        if (this.symbol)
+            token.symbol = this.symbol;
+        if (this.source)
+            token.source = this.source;
+        if (this.destination)
+            token.destination = this.destination;
+        if (this.children)
+            token.children = this.children;
+        if (this.maybe)
+            token.maybe = this.maybe;
         return token;
     }
     toObject() {
@@ -58,7 +62,7 @@ class Token {
     static group(children, symbol) {
         const token = new Token();
         token.children = children;
-        if (symbol !== undefined) {
+        if (symbol) {
             token.symbol = symbol;
         }
         return token;
@@ -70,7 +74,8 @@ class Token {
         }
         const parent = new Token();
         parent.children = [token];
-        parent.symbol = symbol;
+        if (symbol)
+            parent.symbol = symbol;
         return parent;
     }
     static idCount = 0;

@@ -190,6 +190,81 @@ describe('tokens', () => {
         )
       );
     });
+
+    // test('bitwise', () => {
+    //   const context = Context.from('a ^ b & c', 'file');
+    //   const cursor = Cursor(0);
+
+    //   const match = expression.match(cursor, context);
+    //   //expect(match?.cursor).toEqual(Cursor(3));
+    //   expect(match?.token?.toString()).toEqual('a ^ b & c');
+    //   expect(match?.token?.toObject()).toEqual(
+    //     node(
+    //       [
+    //         'expression',
+    //         'relational_expression',
+    //         'shift_expression',
+    //         'additive_expression',
+    //       ],
+    //       node(
+    //         [
+    //           'additive_expression',
+    //           'multiplicative_expression',
+    //           'unary_expression',
+    //           'singular_expression',
+    //         ],
+    //         node(
+    //           ['primary_expression', 'template_elaborated_ident', 'ident'],
+    //           leaf('ident_pattern_token', 'a', '0:0:file')
+    //         ),
+    //         {
+    //           symbol: 'component_or_swizzle_specifier',
+    //           children: [
+    //             leaf('[', '0:1:file'),
+    //             node(
+    //               [
+    //                 'expression',
+    //                 'relational_expression',
+    //                 'shift_expression',
+    //                 'additive_expression',
+    //                 'multiplicative_expression',
+    //                 'unary_expression',
+    //                 'singular_expression',
+    //                 'primary_expression',
+    //                 'literal',
+    //                 'int_literal',
+    //               ],
+    //               leaf('decimal_int_literal', '4', '0:2:file')
+    //             ),
+    //             leaf(']', '0:3:file'),
+    //           ],
+    //         }
+    //       ),
+    //       leaf('additive_operator', '+', '0:5:file'),
+    //       node(
+    //         [
+    //           'multiplicative_expression',
+    //           'unary_expression',
+    //           'singular_expression',
+    //         ],
+    //         node(
+    //           ['primary_expression', 'template_elaborated_ident', 'ident'],
+    //           leaf('ident_pattern_token', 'b', '0:7:file')
+    //         ),
+    //         {
+    //           symbol: 'component_or_swizzle_specifier',
+    //           children: [
+    //             leaf('.', '0:8:file'),
+    //             {
+    //               symbol: 'member_ident',
+    //               children: [leaf('ident_pattern_token', 'xyz', '0:9:file')],
+    //             },
+    //           ],
+    //         }
+    //       )
+    //     )
+    //   );
+    // });
   });
 
   describe('statement', () => {

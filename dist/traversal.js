@@ -1,17 +1,30 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverse = exports.childrenOfType = exports.ofType = exports.assertType = void 0;
+exports.traverse = exports.childrenOfType = exports.ofType = exports.assertType = exports.symbolEquals = void 0;
+const token_1 = require("./token");
 function symbolName(symbol) {
     if (typeof symbol === 'string') {
         return symbol;
+    }
+    if (symbol instanceof token_1.Token) {
+        return symbol.symbol ?? '';
     }
     return symbol.symbol;
 }
 function symbolNames(symbols) {
     return symbols.map((s) => symbolName(s));
 }
+function symbolEquals(left, right) {
+    const leftName = symbolName(left);
+    const rightName = symbolName(right);
+    if (leftName === '' || rightName === '') {
+        return false;
+    }
+    return leftName === rightName;
+}
+exports.symbolEquals = symbolEquals;
 function assertType(token, symbol) {
-    if (!token.hasSymbol(symbolName(symbol))) {
+    if (token.symbol !== symbolName(symbol)) {
         throw new Error('Type');
     }
 }
@@ -31,7 +44,15 @@ function childrenOfType(token, symbols) {
     if (!token.children || symbols.length === 0) {
         return [];
     }
-    return token.children.filter(ofType(...symbols));
+    const predicate = ofType(...symbols);
+    return token.children.flatMap((child) => {
+        if (child.symbol) {
+            return predicate(child) ? [child] : [];
+        }
+        else {
+            return childrenOfType(child, symbols);
+        }
+    });
 }
 exports.childrenOfType = childrenOfType;
 function _traverse(tokens, ancestors, options) {

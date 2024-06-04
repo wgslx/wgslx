@@ -2,7 +2,7 @@ import {join, resolve, basename, dirname} from 'path';
 import {readFileSync} from 'fs';
 
 import {Syntax, postprocess, preprocess} from '../src';
-import {ImportResolver, compileWgslx} from '../src/wgslx';
+import {ImportResolver, compileWgslx} from '../src';
 
 function testFile(inPath: string, outPath: string) {
   const inFullPath = join(__dirname, inPath);

@@ -9,3 +9,5 @@ export * from './preprocess';
 
 // Generated syntax
 export * as Syntax from './syntax';
+
+export * from './wgslx';

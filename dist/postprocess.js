@@ -5,8 +5,8 @@ const syntax_1 = require("./syntax");
 const traversal_1 = require("./traversal");
 const source_map_1 = require("source-map");
 const util_1 = require("./util");
-function postprocess(token) {
-    let text = token.toString();
+function postprocess(token, compact) {
+    let text = token.toString(compact);
     text = text.replaceAll(util_1.TEMPLATE_START, '<').replaceAll(util_1.TEMPLATE_END, '>');
     return text;
 }
