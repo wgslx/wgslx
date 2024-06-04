@@ -1,12 +1,17 @@
 import {SymbolRule} from './rules';
 import {Token} from './token';
 
-type FlexSymbol = string | SymbolRule;
+type FlexSymbol = string | SymbolRule | Token;
 
 function symbolName(symbol: FlexSymbol): string {
   if (typeof symbol === 'string') {
     return symbol;
   }
+
+  if (symbol instanceof Token) {
+    return symbol.symbol ?? '';
+  }
+
   return symbol.symbol;
 }
 
@@ -14,8 +19,19 @@ function symbolNames(symbols: FlexSymbol[]): string[] {
   return symbols.map((s) => symbolName(s));
 }
 
+export function symbolEquals(left: FlexSymbol, right: FlexSymbol): boolean {
+  const leftName = symbolName(left);
+  const rightName = symbolName(right);
+
+  if (leftName === '' || rightName === '') {
+    return false;
+  }
+
+  return leftName === rightName;
+}
+
 export function assertType(token: Token, symbol: FlexSymbol) {
-  if (!token.hasSymbol(symbolName(symbol))) {
+  if (token.symbol !== symbolName(symbol)) {
     throw new Error('Type');
   }
 }
@@ -36,7 +52,15 @@ export function childrenOfType(token: Token, symbols: FlexSymbol[]): Token[] {
     return [];
   }
 
-  return token.children.filter(ofType(...symbols));
+  const predicate = ofType(...symbols);
+
+  return token.children.flatMap((child) => {
+    if (child.symbol) {
+      return predicate(child) ? [child] : [];
+    } else {
+      return childrenOfType(child, symbols);
+    }
+  });
 }
 
 interface PreorderResponse {

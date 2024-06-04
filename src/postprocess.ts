@@ -15,8 +15,8 @@ import {assertType, ofType, traverse} from './traversal';
 import {SourceMapGenerator} from 'source-map';
 import {TEMPLATE_END, TEMPLATE_START} from './util';
 
-export function postprocess(token: Token) {
-  let text = token.toString();
+export function postprocess(token: Token, compact?: boolean): string {
+  let text = token.toString(compact);
 
   // Remove placeholder template strings.
   text = text.replaceAll(TEMPLATE_START, '<').replaceAll(TEMPLATE_END, '>');

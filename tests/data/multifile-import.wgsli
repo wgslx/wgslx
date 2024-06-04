@@ -1,0 +1,9 @@
+
+// A psuedo random number. Initialized with init_rand(), updated with rand().
+var<private> rnd : vec3u;
+
+// Initializes the random number generator.
+fn init_rand(invocation_id: vec3u, seed: vec3u) {
+    const A = vec3(1741651 * 1009, 140893 * 1609 * 13, 6521 * 983 * 7 * 2);
+    rnd = (invocation_id * A) * seed;
+}

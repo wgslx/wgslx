@@ -6,13 +6,22 @@ global_directive_extended :
   diagnostic_directive
 | enable_directive
 | requires_directive
-| include_directive
+| import_directive
 ;
 
-include_directive :
-  'import' include_path ';'
+import_directive :
+  'import' import_path ';'
 ;
 
-include_path :
+import_path :
   /"[^*"<>:|?\\]+"/
 ;
+
+translation_unit_import :
+  global_directive_import * global_decl *
+;
+
+global_directive_import :
+  import_directive
+;
+
