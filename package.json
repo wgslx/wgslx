@@ -1,6 +1,6 @@
 {
   "name": "@wgslx/wgslx",
-  "version": "0.0.10",
+  "version": "0.0.12",
   "description": "Extended WebGPU shading language tools",
   "keywords": [
     "WebGPU",

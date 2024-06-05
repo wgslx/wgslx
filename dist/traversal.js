@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.traverse = exports.childrenOfType = exports.ofType = exports.assertType = exports.symbolEquals = void 0;
+exports.traverse = exports.childrenOfType = exports.ofType = exports.assertType = exports.isType = void 0;
 const token_1 = require("./token");
 function symbolName(symbol) {
     if (typeof symbol === 'string') {
@@ -14,15 +14,17 @@ function symbolName(symbol) {
 function symbolNames(symbols) {
     return symbols.map((s) => symbolName(s));
 }
-function symbolEquals(left, right) {
-    const leftName = symbolName(left);
-    const rightName = symbolName(right);
-    if (leftName === '' || rightName === '') {
-        return false;
+function isType(token, symbol) {
+    const name = symbolName(symbol);
+    while (token.symbol === undefined && token.children?.length === 1) {
+        token = token.children[0];
     }
-    return leftName === rightName;
+    if (token.symbol === name) {
+        return token;
+    }
+    return null;
 }
-exports.symbolEquals = symbolEquals;
+exports.isType = isType;
 function assertType(token, symbol) {
     if (token.symbol !== symbolName(symbol)) {
         throw new Error('Type');

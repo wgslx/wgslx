@@ -1,7 +1,7 @@
 import { SymbolRule } from './rules';
 import { Token } from './token';
 type FlexSymbol = string | SymbolRule | Token;
-export declare function symbolEquals(left: FlexSymbol, right: FlexSymbol): boolean;
+export declare function isType(token: Token, symbol: FlexSymbol): Token | null;
 export declare function assertType(token: Token, symbol: FlexSymbol): void;
 export declare function ofType(...symbols: FlexSymbol[]): (token: Token) => boolean;
 export declare function childrenOfType(token: Token, symbols: FlexSymbol[]): Token[];

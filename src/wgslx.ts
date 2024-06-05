@@ -11,7 +11,7 @@ import {
   translationUnitImport,
 } from './syntax';
 import {Token} from './token';
-import {childrenOfType, symbolEquals} from './traversal';
+import {assertType, childrenOfType, isType} from './traversal';
 
 import {inspect} from 'util';
 
@@ -25,7 +25,7 @@ export interface WgslxOptions {
   // Whether to generate a source map.
   sourceMap: boolean;
 
-  mode: 'wgsl' | 'wgslx';
+  mode: 'auto' | 'wgsl' | 'wgslx';
 
   /** Resolver for imports */
   importResolver?: ImportResolver;
@@ -87,6 +87,21 @@ function tokenizeFile(
   return matchResult.match.token;
 }
 
+export function getImportPath(importStatementToken: Token): string {
+  assertType(importStatementToken, importDirective);
+  if (
+    !importStatementToken.children ||
+    importStatementToken.children.length !== 3
+  ) {
+    throw new Error('Malformed import statement');
+  }
+
+  return importStatementToken.children[1].text!.substring(
+    1,
+    importStatementToken.children[1].text!.length - 1
+  );
+}
+
 class ImportContext {
   resolved: Set<string> = new Set();
   importResolver: ImportResolver;
@@ -122,16 +137,20 @@ class ImportContext {
     const declarations: Token[] = [];
 
     for (let i = 0; i < token.children!.length; i++) {
-      if (!symbolEquals(token.children![i], globalDirectiveImport)) {
+      const globalDirectiveToken = isType(
+        token.children![i],
+        globalDirectiveImport
+      );
+      if (!globalDirectiveToken) {
         declarations.push(token.children![i]);
         continue;
       }
 
-      const directive = token.children![i];
+      const directive = globalDirectiveToken;
       for (let j = 0; j < directive.children!.length; j++) {
         const importStatement = directive.children![j];
-        if (symbolEquals(importStatement, importDirective)) {
-          const importPath = importStatement.children![1].text!;
+        if (isType(importStatement, importDirective)) {
+          const importPath = getImportPath(importStatement);
           const importToken = this.import(importFilePath, importPath);
 
           if (importToken) {
@@ -165,6 +184,9 @@ export function compileWgslx(
   const globalDirectives = childrenOfType(rootToken, [globalDirectiveExtended]);
   const nonImportGlobalDirectives: Token[] = [];
   const globalDeclarations = childrenOfType(rootToken, [globalDecl]);
+
+  let importContext: ImportContext | null = null;
+
   for (const directive of globalDirectives) {
     if (!directive.children) {
       nonImportGlobalDirectives.push(directive);
@@ -173,7 +195,7 @@ export function compileWgslx(
 
     for (let i = 0; i < directive.children.length; i++) {
       const importStatement = directive.children[i];
-      if (!symbolEquals(importStatement, importDirective)) {
+      if (!isType(importStatement, importDirective)) {
         nonImportGlobalDirectives.push(importStatement);
         continue;
       }
@@ -182,21 +204,15 @@ export function compileWgslx(
         throw new Error('Import resolver is required');
       }
 
-      const importContext = new ImportContext(opts.importResolver, filePath);
-      // Move all declarations to the top level.
-
-      if (!importStatement.children || importStatement.children.length < 2) {
-        throw new Error('Expected children');
+      if (!importContext) {
+        importContext = new ImportContext(opts.importResolver, filePath);
       }
 
-      const importLiteral = importStatement.children[1].text!.substring(
-        1,
-        importStatement.children[1].text!.length - 1
-      );
+      const importPath = getImportPath(importStatement);
 
-      const importRoot = importContext.import(filePath, importLiteral);
+      const importRoot = importContext.import(filePath, importPath);
       if (!importRoot) {
-        throw new Error('Failed to import');
+        continue;
       }
       const importDeclarations = childrenOfType(importRoot, [globalDecl]);
       nonImportGlobalDirectives.unshift(...importDeclarations);

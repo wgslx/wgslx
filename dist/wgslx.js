@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.compileWgslx = exports.DEFAULT_WGSLX_OPTIONS = void 0;
+exports.compileWgslx = exports.getImportPath = exports.DEFAULT_WGSLX_OPTIONS = void 0;
 const postprocess_1 = require("./postprocess");
 const preprocess_1 = require("./preprocess");
 const rules_1 = require("./rules");
@@ -41,6 +41,15 @@ function tokenizeFile(source, filePath, rootSymbol) {
     }
     return matchResult.match.token;
 }
+function getImportPath(importStatementToken) {
+    (0, traversal_1.assertType)(importStatementToken, syntax_1.importDirective);
+    if (!importStatementToken.children ||
+        importStatementToken.children.length !== 3) {
+        throw new Error('Malformed import statement');
+    }
+    return importStatementToken.children[1].text.substring(1, importStatementToken.children[1].text.length - 1);
+}
+exports.getImportPath = getImportPath;
 class ImportContext {
     resolved = new Set();
     importResolver;
@@ -62,15 +71,16 @@ class ImportContext {
         const directives = [];
         const declarations = [];
         for (let i = 0; i < token.children.length; i++) {
-            if (!(0, traversal_1.symbolEquals)(token.children[i], syntax_1.globalDirectiveImport)) {
+            const globalDirectiveToken = (0, traversal_1.isType)(token.children[i], syntax_1.globalDirectiveImport);
+            if (!globalDirectiveToken) {
                 declarations.push(token.children[i]);
                 continue;
             }
-            const directive = token.children[i];
+            const directive = globalDirectiveToken;
             for (let j = 0; j < directive.children.length; j++) {
                 const importStatement = directive.children[j];
-                if ((0, traversal_1.symbolEquals)(importStatement, syntax_1.importDirective)) {
-                    const importPath = importStatement.children[1].text;
+                if ((0, traversal_1.isType)(importStatement, syntax_1.importDirective)) {
+                    const importPath = getImportPath(importStatement);
                     const importToken = this.import(importFilePath, importPath);
                     if (importToken) {
                         declarations.push(...importToken.children);
@@ -92,6 +102,7 @@ function compileWgslx(source, filePath, options) {
     const globalDirectives = (0, traversal_1.childrenOfType)(rootToken, [syntax_1.globalDirectiveExtended]);
     const nonImportGlobalDirectives = [];
     const globalDeclarations = (0, traversal_1.childrenOfType)(rootToken, [syntax_1.globalDecl]);
+    let importContext = null;
     for (const directive of globalDirectives) {
         if (!directive.children) {
             nonImportGlobalDirectives.push(directive);
@@ -99,21 +110,20 @@ function compileWgslx(source, filePath, options) {
         }
         for (let i = 0; i < directive.children.length; i++) {
             const importStatement = directive.children[i];
-            if (!(0, traversal_1.symbolEquals)(importStatement, syntax_1.importDirective)) {
+            if (!(0, traversal_1.isType)(importStatement, syntax_1.importDirective)) {
                 nonImportGlobalDirectives.push(importStatement);
                 continue;
             }
             if (!opts.importResolver) {
                 throw new Error('Import resolver is required');
             }
-            const importContext = new ImportContext(opts.importResolver, filePath);
-            if (!importStatement.children || importStatement.children.length < 2) {
-                throw new Error('Expected children');
+            if (!importContext) {
+                importContext = new ImportContext(opts.importResolver, filePath);
             }
-            const importLiteral = importStatement.children[1].text.substring(1, importStatement.children[1].text.length - 1);
-            const importRoot = importContext.import(filePath, importLiteral);
+            const importPath = getImportPath(importStatement);
+            const importRoot = importContext.import(filePath, importPath);
             if (!importRoot) {
-                throw new Error('Failed to import');
+                continue;
             }
             const importDeclarations = (0, traversal_1.childrenOfType)(importRoot, [syntax_1.globalDecl]);
             nonImportGlobalDirectives.unshift(...importDeclarations);

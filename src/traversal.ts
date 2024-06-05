@@ -19,15 +19,18 @@ function symbolNames(symbols: FlexSymbol[]): string[] {
   return symbols.map((s) => symbolName(s));
 }
 
-export function symbolEquals(left: FlexSymbol, right: FlexSymbol): boolean {
-  const leftName = symbolName(left);
-  const rightName = symbolName(right);
+export function isType(token: Token, symbol: FlexSymbol): Token | null {
+  const name = symbolName(symbol);
 
-  if (leftName === '' || rightName === '') {
-    return false;
+  while (token.symbol === undefined && token.children?.length === 1) {
+    token = token.children[0];
   }
 
-  return leftName === rightName;
+  if (token.symbol === name) {
+    return token;
+  }
+
+  return null;
 }
 
 export function assertType(token: Token, symbol: FlexSymbol) {

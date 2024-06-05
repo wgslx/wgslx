@@ -1,3 +1,4 @@
+import "multifile-import-2.wgsli";
 
 // A psuedo random number. Initialized with init_rand(), updated with rand().
 var<private> rnd : vec3u;
