@@ -191,7 +191,7 @@ describe('sequence', () => {
           source: '0:12:file',
         },
       ],
-      modifier: '()',
+      modifier: 'S',
     });
   });
 
@@ -272,7 +272,7 @@ describe('maybe', () => {
               source: '0:6:file',
             },
           ],
-          modifier: '()',
+          modifier: 'S',
         },
       ],
       modifier: '?',
@@ -438,8 +438,13 @@ describe('union', () => {
       offset: 5,
     });
     expect(match?.token.toObject()).toEqual({
-      text: 'fooba',
-      source: '0:0:file',
+      children: [
+        {
+          text: 'fooba',
+          source: '0:0:file',
+        },
+      ],
+      modifier: 'U',
     });
   });
 
@@ -495,5 +500,190 @@ describe('union', () => {
         rules: [litA, starRule, unionRule],
       },
     ]);
+  });
+
+  describe('symbol', () => {
+    test('matches symbol', () => {
+      const context = Context.from('barfoo', 'file');
+      const rule = symbol('foo');
+      rule.set(literal('bar'));
+      const cursor = {
+        segment: 0,
+        offset: 0,
+      };
+
+      const {match, canaries} = context.rule(cursor, rule);
+      expect(match).toBeTruthy();
+      expect(match?.cursor).toEqual({
+        segment: 0,
+        offset: 3,
+      });
+      expect(match?.token.toObject()).toEqual({
+        text: 'bar',
+        symbol: 'foo',
+        source: '0:0:file',
+      });
+    });
+
+    test('fails to match a symbol', () => {
+      const context = Context.from('foobar', 'file');
+      const rule = symbol('foo');
+      const lit = literal('baz');
+      const starRule = star(lit);
+      rule.set(lit);
+      const cursor = {
+        segment: 0,
+        offset: 0,
+      };
+
+      const {match, canaries} = context.rule(cursor, rule);
+      expect(match).toBeFalsy();
+      expect(canaries).toBeTruthy();
+      expect(canaries).toEqual([
+        {
+          cursor,
+          rules: [lit, rule],
+        },
+      ]);
+    });
+
+    test('passes through canaries', () => {
+      const context = Context.from('bar bar bar foo', 'file');
+      const rule = symbol('rule');
+      const lit = literal('bar');
+      const starRule = star(lit);
+      rule.set(starRule);
+      const cursor = {
+        segment: 0,
+        offset: 0,
+      };
+
+      const {match, canaries} = context.rule(cursor, rule);
+      expect(match).toBeTruthy();
+      expect(match?.cursor).toEqual({
+        segment: 3,
+        offset: 0,
+      });
+      expect(match?.token.toObject()).toEqual({
+        children: [
+          {
+            text: 'bar',
+            source: '0:0:file',
+          },
+          {
+            text: 'bar',
+            source: '0:4:file',
+          },
+          {
+            text: 'bar',
+            source: '0:8:file',
+          },
+        ],
+        modifier: '*',
+        symbol: 'rule',
+      });
+      expect(canaries).toBeTruthy();
+      expect(canaries).toEqual([
+        {
+          cursor: {
+            segment: 3,
+            offset: 0,
+          },
+          rules: [lit, starRule, rule],
+        },
+      ]);
+    });
+
+    test('left-recursion succeeds and passes canaries', () => {
+      const context = Context.from('a a a b b', 'file');
+      const rule = symbol('rule');
+      const litA = literal('a');
+      const litB = literal('b');
+      const sequenceRule = sequence(rule, litB);
+      rule.set(union(litA, sequenceRule));
+      expect(rule.isLeftRecursive()).toBeTruthy();
+
+      // 'a' | rule 'b'
+
+      const cursor = {
+        segment: 0,
+        offset: 0,
+      };
+
+      const {match, canaries} = context.rule(cursor, rule);
+      expect(match?.cursor).toEqual({
+        segment: 4,
+        offset: 0,
+      });
+      expect(match?.token.toObject()).toEqual({
+        children: [
+          {
+            text: 'a',
+            source: '0:0:file',
+          },
+          {
+            text: 'a',
+            source: '0:2:file',
+          },
+          {
+            text: 'a',
+            source: '0:4:file',
+          },
+          {
+            text: 'b',
+            source: '0:6:file',
+          },
+        ],
+        modifier: 'L',
+        symbol: 'rule',
+      });
+      expect(canaries).toBeTruthy();
+      expect(canaries).toEqual([]);
+    });
+
+    test('left-recursion succeeds and passes canaries', () => {
+      const context = Context.from('a a c', 'file');
+      const rule = symbol('rule');
+      const litA = literal('a');
+      const litB = literal('b');
+      const sequenceRule = sequence(rule, litB);
+      rule.set(union(litA, sequenceRule));
+      expect(rule.isLeftRecursive()).toBeTruthy();
+
+      // 'a' | rule 'b'
+
+      const cursor = {
+        segment: 0,
+        offset: 0,
+      };
+
+      const {match, canaries} = context.rule(cursor, rule);
+      expect(match?.cursor).toEqual({
+        segment: 1,
+        offset: 0,
+      });
+      expect(match?.token.toObject()).toEqual({
+        text: 'a',
+        symbol: 'rule',
+        source: '0:0:file',
+      });
+      expect(canaries).toBeTruthy();
+      expect(canaries).toEqual([
+        {
+          cursor: {
+            segment: 2,
+            offset: 0,
+          },
+          rules: [litB, rule],
+        },
+        {
+          cursor: {
+            segment: 1,
+            offset: 0,
+          },
+          rules: [litB, rule],
+        },
+      ]);
+    });
   });
 });

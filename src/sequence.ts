@@ -110,6 +110,14 @@ export class Sequence {
   }
 
   toSourceCursor(cursor: Cursor): SourceCursor {
+    // End of file.
+    if (cursor.segment === this.segments.length && cursor.offset === 0) {
+      return {
+        line: this.segments[this.segments.length - 1].line + 1,
+        column: this.segments[this.segments.length - 1].column + 1,
+      };
+    }
+
     if (cursor.segment >= this.segments.length) {
       return {line: -1, column: -1};
     }

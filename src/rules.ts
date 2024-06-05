@@ -34,7 +34,7 @@ export class MatchResult {
   match?: Match;
 
   /** Canaries of what should have matched. */
-  canaries?: Canary[];
+  canaries: Canary[] = [];
 
   clone(): MatchResult {
     const result = new MatchResult();
@@ -45,12 +45,10 @@ export class MatchResult {
       };
     }
 
-    if (this.canaries) {
-      result.canaries = this.canaries.map((c) => ({
-        rules: [...c.rules],
-        cursor: c.cursor,
-      }));
-    }
+    result.canaries = this.canaries.map((c) => ({
+      rules: [...c.rules],
+      cursor: c.cursor,
+    }));
 
     return result;
   }
@@ -64,7 +62,7 @@ export class MatchResult {
   static successFrom(
     rule: Rule,
     match: Match,
-    canaries?: Canary[]
+    canaries: Canary[]
   ): MatchResult {
     const result = new MatchResult();
     result.match = match;
@@ -89,7 +87,7 @@ export class MatchResult {
     const result = new MatchResult();
 
     if (!canaries || canaries.length === 0) {
-      throw new Error('Expected canaries');
+      throw new Error('Expected canaries'); //@@
     }
 
     result.canaries = canaries.map((c) => ({
@@ -180,17 +178,19 @@ export class Context {
 
     if (matchResult.canaries) {
       // Sort canaries by descending cursor position.
-      matchResult.canaries.sort((a, b) => -compareCursor(a.cursor, b.cursor));
+      matchResult.canaries.sort((a, b) => -compareCursor(a.cursor, b.cursor)); //@@
     }
 
     if (!matchResult.match) {
-      return matchResult;
+      return matchResult; //@@
     }
 
-    //console.log(inspect(matchResult, {depth: 10}));
+    //console.log(inspect(matchResult.match.token.toObject(), {depth: 10}));
+    console.log(inspect(matchResult.canaries, {depth: 2}));
+    console.log(this.sequence.toSourceCursor(matchResult.match.cursor));
     const {match} = matchResult;
     if (match.cursor.segment < this.sequence.segments.length) {
-      return MatchResult.failure(cursor, rootRule);
+      return MatchResult.failureFrom(rootRule, matchResult.canaries);
     }
 
     return matchResult;
@@ -273,21 +273,28 @@ export class SequenceRule extends Rule {
 
   match(cursor: Cursor, context: Context): MatchResult {
     const tokens: Token[] = [];
+    const canaries: Canary[] = [];
     for (const rule of this.rules) {
       const matchResult = context.rule(cursor, rule);
-      if (!matchResult.match) {
-        if (!matchResult.canaries) {
-          throw new Error('Expected match or canaries');
-        }
+      canaries.push(...matchResult.canaries);
 
-        return MatchResult.failureFrom(this, matchResult.canaries);
+      if (!matchResult.match) {
+        return MatchResult.failureFrom(this, canaries);
       }
+
       tokens.push(matchResult.match.token);
       cursor = matchResult.match.cursor;
     }
 
-    const token = Token.group(tokens, '()');
-    return MatchResult.success(cursor, token);
+    const token = Token.group(tokens, 'S');
+    return MatchResult.successFrom(
+      this,
+      {
+        cursor,
+        token,
+      },
+      canaries
+    );
   }
 
   constructor(rules: Rule[]) {
@@ -301,7 +308,7 @@ export function sequence(first: FlexRule, ...rest: FlexRule[]): Rule {
   const rules = rulifyAll([first, ...rest]);
 
   if (rules.length === 0) {
-    throw new Error();
+    throw new Error(); //@@
   }
 
   if (rules.length === 1) {
@@ -322,9 +329,6 @@ export class UnionRule extends Rule {
     for (const rule of this.rules) {
       const matchResult = context.rule(cursor, rule);
       if (!matchResult.match) {
-        if (!matchResult.canaries) {
-          throw new Error('Expected match or canaries');
-        }
         combinedCanaries.push(...matchResult.canaries);
         continue;
       }
@@ -349,7 +353,7 @@ export class UnionRule extends Rule {
     if (!longestMatch) {
       return MatchResult.failureFrom(this, combinedCanaries);
     }
-
+    longestMatch.token = Token.group([longestMatch.token], 'U');
     return MatchResult.successFrom(this, longestMatch, combinedCanaries);
   }
 
@@ -359,7 +363,7 @@ export class UnionRule extends Rule {
     this.rules = rules;
 
     if (this.rules.length === 0) {
-      throw new Error('Expected at least one rule in a union.');
+      throw new Error('Expected at least one rule in a union.'); //@@
     }
   }
 }
@@ -380,13 +384,14 @@ export function union(first: FlexRule, ...rest: FlexRule[]): Rule {
 
 export class MaybeRule extends Rule {
   readonly rule: Rule;
+  readonly modifiedSymbol?: string;
 
   match(cursor: Cursor, context: Context): MatchResult {
     const matchResult = context.rule(cursor, this.rule);
     const token = matchResult.match ? [matchResult.match.token] : [];
 
     const match: Match = {
-      token: Token.group(token, '?'),
+      token: Token.modify(token, '?', this.modifiedSymbol),
       cursor: matchResult.match ? matchResult.match.cursor : cursor,
     };
 
@@ -397,6 +402,10 @@ export class MaybeRule extends Rule {
     super();
 
     this.rule = rule;
+
+    if (rule instanceof SymbolRule) {
+      this.modifiedSymbol = rule.symbol;
+    }
   }
 }
 
@@ -407,6 +416,7 @@ export function maybe(first: FlexRule, ...rest: FlexRule[]): Rule {
 
 export class StarRule extends Rule {
   readonly rule: Rule;
+  readonly modifiedSymbol?: string;
 
   match(cursor: Cursor, context: Context): MatchResult {
     const tokens: Token[] = [];
@@ -419,7 +429,7 @@ export class StarRule extends Rule {
     }
 
     const result = {
-      token: Token.group(tokens, '*'),
+      token: Token.modify(tokens, '*', this.modifiedSymbol),
       cursor,
     };
 
@@ -431,6 +441,10 @@ export class StarRule extends Rule {
     super();
 
     this.rule = rule;
+
+    if (rule instanceof SymbolRule) {
+      this.modifiedSymbol = rule.symbol;
+    }
   }
 }
 
@@ -441,11 +455,11 @@ export function star(first: FlexRule, ...rest: FlexRule[]): Rule {
 
 export class SymbolRule extends Rule {
   readonly symbol: string;
-  private leftRecursiveRest?: Rule;
+  private leftRecursiveTail?: Rule;
   private rule?: Rule;
 
   isLeftRecursive() {
-    return !!this.leftRecursiveRest;
+    return !!this.leftRecursiveTail; //@@
   }
 
   get(): Rule | null {
@@ -454,31 +468,31 @@ export class SymbolRule extends Rule {
 
   set(rule: Rule) {
     if (this.rule) {
-      throw new Error(`Duplicate initialization of rule ${this.rule}`);
+      throw new Error(`Duplicate initialization of rule ${this.rule}`); //@@
     }
 
     SymbolRule.symbolize(rule, this.symbol);
 
     // Look for left recursion.
     if (rule instanceof UnionRule) {
-      const recursive: Rule[] = [];
-      const nonrecursive: Rule[] = [];
+      const tail: Rule[] = [];
+      const body: Rule[] = [];
 
       for (const or of rule.rules) {
         if (or instanceof SequenceRule && or.rules[0] === this) {
           // Left recursion detected, remove the recursive element.
           const [_, second, ...rest] = or.rules;
-          recursive.push(sequence(second, ...rest));
+          tail.push(sequence(second, ...rest));
           continue;
         }
-        nonrecursive.push(or);
+        body.push(or);
       }
 
-      if (recursive.length !== 0) {
-        const [f1, ...r1] = recursive;
-        this.leftRecursiveRest = union(f1, ...r1);
-        const [f2, ...r2] = nonrecursive;
-        rule = union(f2, ...r2);
+      if (tail.length !== 0) {
+        const [tail1, ...tailRest] = tail;
+        this.leftRecursiveTail = union(tail1, ...tailRest);
+        const [body1, ...bodyRest] = body;
+        rule = union(body1, ...bodyRest);
       }
     }
 
@@ -486,48 +500,84 @@ export class SymbolRule extends Rule {
   }
 
   match(cursor: Cursor, context: Context): MatchResult {
-    if (!this.rule) {
+    const bodyRule = this.rule;
+    if (!bodyRule) {
       throw new Error(`Uninitialized rule ${this.symbol}`);
     }
 
-    let matchResult = context.rule(cursor, this.rule);
-    if (!matchResult.match) {
-      return MatchResult.failureFrom(this, matchResult.canaries);
+    // Match the body once.
+    let initialMatchResult = context.rule(cursor, bodyRule);
+    if (!initialMatchResult.match) {
+      return MatchResult.failureFrom(this, initialMatchResult.canaries);
     }
 
-    let match = matchResult.match;
+    if (!this.leftRecursiveTail) {
+      initialMatchResult.match.token = Token.symbol(
+        initialMatchResult.match.token,
+        this.symbol
+      );
+      return MatchResult.successFrom(
+        this,
+        initialMatchResult.match,
+        initialMatchResult.canaries
+      );
+    }
 
-    match.token = Token.symbol(match.token, this.symbol);
+    // If left recursive, we keep matching the body as long as a tail matches after.
+    // TODO: We can optimize by working backwards by matching as many body instances first.
+    const tailRule = this.leftRecursiveTail;
+    const recursiveBodyMatchResults: MatchResult[] = [initialMatchResult];
 
-    if (this.leftRecursiveRest) {
-      matchResult = context.rule(match.cursor, this.leftRecursiveRest);
-      while (matchResult.match) {
-        let restMatch = matchResult.match;
-        // Left recursion found.
-        if (!restMatch.token.children && !restMatch.token.text) {
-          throw new Error('Successful left-recursion must emit tokens');
-        }
+    // Try to match the body rule as many times as possible.
+    let matchResult = context.rule(initialMatchResult.match.cursor, bodyRule);
+    while (matchResult.match) {
+      recursiveBodyMatchResults.push(matchResult);
+      matchResult = context.rule(matchResult.match.cursor, bodyRule);
+    }
 
-        match = {
-          token: restMatch.token.children
-            ? Token.group(
-                [match.token, ...restMatch.token.children],
-                'left-recursion',
-                this.symbol
-              )
-            : Token.group(
-                [match.token, restMatch.token],
-                'left-recursion',
-                this.symbol
-              ),
-          cursor: restMatch.cursor,
-        };
-
-        matchResult = context.rule(match.cursor, this.leftRecursiveRest);
+    // Try to match the tail once.
+    let tailCanaries: Canary[] = [];
+    for (let i = recursiveBodyMatchResults.length - 1; i >= 0; i--) {
+      const bodyMatchResult = recursiveBodyMatchResults[i];
+      // Assert the match is not empty due to the loop condition above.
+      const tailMatchResult = context.rule(
+        bodyMatchResult.match!.cursor,
+        tailRule
+      );
+      if (tailMatchResult.match) {
+        // We have matched the longest tail recursion, collect and return.
+        const tokens = recursiveBodyMatchResults
+          .slice(0, i + 1)
+          .map((r) => r.match!.token);
+        tokens.push(tailMatchResult.match.token);
+        return MatchResult.successFrom(
+          this,
+          {
+            token: Token.group(tokens, 'L', this.symbol),
+            cursor: tailMatchResult.match.cursor,
+          },
+          // Canaries are combined from the last body match and the tail.
+          [
+            ...recursiveBodyMatchResults[i].canaries,
+            ...tailMatchResult.canaries,
+          ]
+        );
       }
+      // Collect the canaries of the tail.
+      tailCanaries.push(...tailMatchResult.canaries);
     }
 
-    return MatchResult.successFrom(this, match, matchResult.canaries);
+    // If we never matched the tail, we simply return the initial match.
+    initialMatchResult.match.token = Token.symbol(
+      initialMatchResult.match.token,
+      this.symbol
+    );
+
+    // Canaries are combined from the initial match and the tail.
+    return MatchResult.successFrom(this, initialMatchResult.match, [
+      ...initialMatchResult.canaries,
+      ...tailCanaries,
+    ]);
   }
 
   constructor(name: string) {
@@ -560,7 +610,7 @@ export function symbol(name: string): SymbolRule {
   const rule = new SymbolRule(name);
 
   if (registry.has(name)) {
-    throw new Error(`Duplicate named rule ${rule}`);
+    throw new Error(`Duplicate named rule ${rule}`); //@@
   }
 
   return rule;
@@ -570,7 +620,7 @@ export function rule(name: string): SymbolRule {
   const rule = registry.get(name);
 
   if (!rule) {
-    throw new Error(`Duplicate named rule ${rule}`);
+    throw new Error(`Duplicate named rule ${rule}`); //@@
   }
 
   return rule;

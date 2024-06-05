@@ -6,6 +6,8 @@ export interface TokenJson {
 
   modifier?: string;
 
+  modifiedSymbol?: string;
+
   source?: string;
 
   destination?: string;
@@ -35,6 +37,8 @@ export class Token {
   /** The method of grouping */
   modifier?: string;
 
+  modifiedSymbol?: string;
+
   source?: string;
 
   destination?: string;
@@ -46,6 +50,7 @@ export class Token {
     if (this.text) token.text = this.text;
     if (this.symbol) token.symbol = this.symbol;
     if (this.modifier) token.modifier = this.modifier;
+    if (this.modifiedSymbol) token.modifiedSymbol = this.modifiedSymbol;
     if (this.source) token.source = this.source;
     if (this.destination) token.destination = this.destination;
     if (this.children) token.children = this.children; // shallow copy
@@ -59,6 +64,7 @@ export class Token {
     if (this.destination) object.destination = this.destination;
     if (this.text) object.text = this.text;
     if (this.symbol) object.symbol = this.symbol;
+    if (this.modifiedSymbol) object.modifiedSymbol = this.modifiedSymbol;
     if (this.modifier) object.modifier = this.modifier;
     if (this.children) object.children = this.children.map((t) => t.toObject());
 
@@ -98,6 +104,20 @@ export class Token {
     token.modifier = modifier;
     if (symbol) {
       token.symbol = symbol;
+    }
+    return token;
+  }
+
+  static modify(
+    children: Token[],
+    modifier: string,
+    modifiedSymbol?: string
+  ): Token {
+    const token = new Token();
+    token.children = children;
+    token.modifier = modifier;
+    if (modifiedSymbol) {
+      token.modifiedSymbol = modifiedSymbol;
     }
     return token;
   }
