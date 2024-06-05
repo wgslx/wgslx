@@ -66,14 +66,14 @@ export class MatchResult {
   ): MatchResult {
     const result = new MatchResult();
     result.match = match;
-    if (canaries) {
-      result.canaries = canaries
-        .filter((c) => cursorGreaterOrEqualThan(c.cursor, match.cursor))
-        .map((c) => ({
-          rules: [...c.rules, rule],
-          cursor: c.cursor,
-        }));
-    }
+    result.canaries = canaries
+      .filter((c) => cursorGreaterOrEqualThan(c.cursor, match.cursor))
+      .map((c) => ({
+        rules: [...c.rules, rule],
+        cursor: c.cursor,
+      }));
+    result.canaries.sort((a, b) => -compareCursor(a.cursor, b.cursor));
+    result.canaries = result.canaries.slice(0, 5);
     return result;
   }
 
@@ -328,24 +328,19 @@ export class UnionRule extends Rule {
 
     for (const rule of this.rules) {
       const matchResult = context.rule(cursor, rule);
+      combinedCanaries.push(...matchResult.canaries);
+
       if (!matchResult.match) {
-        combinedCanaries.push(...matchResult.canaries);
         continue;
-      }
-
-      const {match, canaries} = matchResult;
-
-      if (canaries) {
-        combinedCanaries.push(...canaries);
       }
 
       if (!longestMatch) {
-        longestMatch = match;
+        longestMatch = matchResult.match;
         continue;
       }
 
-      if (cursorGreaterThan(match.cursor, longestMatch.cursor)) {
-        longestMatch = match;
+      if (cursorGreaterThan(matchResult.match.cursor, longestMatch.cursor)) {
+        longestMatch = matchResult.match;
         continue;
       }
     }
@@ -421,6 +416,7 @@ export class StarRule extends Rule {
   match(cursor: Cursor, context: Context): MatchResult {
     const tokens: Token[] = [];
     let matchResult = context.rule(cursor, this.rule);
+    const canaries: Canary[] = [];
 
     while (matchResult.match) {
       tokens.push(matchResult.match.token);
