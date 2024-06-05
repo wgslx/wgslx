@@ -11,12 +11,13 @@ export interface Canary {
 }
 export declare class MatchResult {
     match?: Match;
-    canaries?: Canary[];
+    canaries: Canary[];
     clone(): MatchResult;
     static success(cursor: Cursor, token: Token): MatchResult;
-    static successFrom(rule: Rule, match: Match, canaries?: Canary[]): MatchResult;
+    static successFrom(rule: Rule, match: Match, canaries: Canary[]): MatchResult;
     static failure(cursor: Cursor, rule: Rule): MatchResult;
     static failureFrom(rule: Rule, canaries?: Canary[]): MatchResult;
+    static augmentCanaries(rule: Rule, canaries: Canary[], cursor?: Cursor): Canary[];
 }
 export declare class Context {
     readonly sequence: Sequence;
@@ -63,19 +64,21 @@ export declare class UnionRule extends Rule {
 export declare function union(first: FlexRule, ...rest: FlexRule[]): Rule;
 export declare class MaybeRule extends Rule {
     readonly rule: Rule;
+    readonly modifiedSymbol?: string;
     match(cursor: Cursor, context: Context): MatchResult;
     constructor(rule: Rule);
 }
 export declare function maybe(first: FlexRule, ...rest: FlexRule[]): Rule;
 export declare class StarRule extends Rule {
     readonly rule: Rule;
+    readonly modifiedSymbol?: string;
     match(cursor: Cursor, context: Context): MatchResult;
     constructor(rule: Rule);
 }
 export declare function star(first: FlexRule, ...rest: FlexRule[]): Rule;
 export declare class SymbolRule extends Rule {
     readonly symbol: string;
-    private leftRecursiveRest?;
+    private leftRecursiveTail?;
     private rule?;
     isLeftRecursive(): boolean;
     get(): Rule | null;

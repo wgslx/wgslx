@@ -74,6 +74,9 @@ function tokenizeFile(
 
       for (let j = 0; j < canary.rules.length; j++) {
         const rule = canary.rules[j];
+        if (!rule.symbol) {
+          continue;
+        }
         errors.push(`    @: ${rule.symbol}`);
       }
     }

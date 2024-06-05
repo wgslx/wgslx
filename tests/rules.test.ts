@@ -463,10 +463,6 @@ describe('union', () => {
     expect(canaries).toEqual([
       {
         cursor,
-        rules: [rules[0], rule],
-      },
-      {
-        cursor,
         rules: [rules[1], rule],
       },
     ]);
@@ -672,13 +668,6 @@ describe('union', () => {
         {
           cursor: {
             segment: 2,
-            offset: 0,
-          },
-          rules: [litB, rule],
-        },
-        {
-          cursor: {
-            segment: 1,
             offset: 0,
           },
           rules: [litB, rule],

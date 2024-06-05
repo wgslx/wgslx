@@ -2,6 +2,7 @@ export interface TokenJson {
     text?: string;
     symbol?: string;
     modifier?: string;
+    modifiedSymbol?: string;
     source?: string;
     destination?: string;
     children?: TokenJson[];
@@ -20,6 +21,7 @@ export declare class Token {
     text?: string;
     symbol?: string;
     modifier?: string;
+    modifiedSymbol?: string;
     source?: string;
     destination?: string;
     children?: Token[];
@@ -28,6 +30,7 @@ export declare class Token {
     toString(compact?: boolean): any;
     static text(text: string, source: string): Token;
     static group(children: Token[], modifier: string, symbol?: string): Token;
+    static modify(children: Token[], modifier: string, modifiedSymbol?: string): Token;
     static symbol(token: Token, symbol: string): Token;
     private static idCount;
     private constructor();

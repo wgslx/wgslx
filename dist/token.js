@@ -11,6 +11,7 @@ class Token {
     text;
     symbol;
     modifier;
+    modifiedSymbol;
     source;
     destination;
     children;
@@ -22,6 +23,8 @@ class Token {
             token.symbol = this.symbol;
         if (this.modifier)
             token.modifier = this.modifier;
+        if (this.modifiedSymbol)
+            token.modifiedSymbol = this.modifiedSymbol;
         if (this.source)
             token.source = this.source;
         if (this.destination)
@@ -40,6 +43,8 @@ class Token {
             object.text = this.text;
         if (this.symbol)
             object.symbol = this.symbol;
+        if (this.modifiedSymbol)
+            object.modifiedSymbol = this.modifiedSymbol;
         if (this.modifier)
             object.modifier = this.modifier;
         if (this.children)
@@ -71,6 +76,15 @@ class Token {
         token.modifier = modifier;
         if (symbol) {
             token.symbol = symbol;
+        }
+        return token;
+    }
+    static modify(children, modifier, modifiedSymbol) {
+        const token = new Token();
+        token.children = children;
+        token.modifier = modifier;
+        if (modifiedSymbol) {
+            token.modifiedSymbol = modifiedSymbol;
         }
         return token;
     }

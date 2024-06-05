@@ -66,14 +66,7 @@ export class MatchResult {
   ): MatchResult {
     const result = new MatchResult();
     result.match = match;
-    result.canaries = canaries
-      .filter((c) => cursorGreaterOrEqualThan(c.cursor, match.cursor))
-      .map((c) => ({
-        rules: [...c.rules, rule],
-        cursor: c.cursor,
-      }));
-    result.canaries.sort((a, b) => -compareCursor(a.cursor, b.cursor));
-    result.canaries = result.canaries.slice(0, 5);
+    result.canaries = this.augmentCanaries(rule, canaries, match.cursor);
     return result;
   }
 
@@ -90,12 +83,50 @@ export class MatchResult {
       throw new Error('Expected canaries'); //@@
     }
 
-    result.canaries = canaries.map((c) => ({
-      rules: [...c.rules, rule],
-      cursor: c.cursor,
-    }));
+    result.canaries = this.augmentCanaries(rule, canaries);
 
     return result;
+  }
+
+  static augmentCanaries(
+    rule: Rule,
+    canaries: Canary[],
+    cursor?: Cursor
+  ): Canary[] {
+    if (cursor) {
+      canaries = canaries.filter((c) =>
+        cursorGreaterOrEqualThan(c.cursor, cursor)
+      );
+    }
+
+    if (canaries.length === 0) {
+      return [];
+    }
+
+    canaries.sort((a, b) => -compareCursor(a.cursor, b.cursor));
+
+    let culledCanaries: Canary[] = [];
+    let canary = {
+      rules: [...canaries[0].rules, rule],
+      cursor: canaries[0].cursor,
+    };
+    for (let i = 1; i < canaries.length; i++) {
+      if (compareCursor(canaries[i].cursor, canary.cursor) === 0) {
+        if (canaries[i].rules.length < canary.rules.length) {
+          canary = {
+            rules: [...canaries[i].rules, rule],
+            cursor: canaries[i].cursor,
+          };
+        }
+      } else {
+        culledCanaries.push(canary);
+        if (culledCanaries.length >= 5) {
+          return culledCanaries;
+        }
+      }
+    }
+
+    return [canary];
   }
 }
 
@@ -185,12 +216,9 @@ export class Context {
       return matchResult; //@@
     }
 
-    //console.log(inspect(matchResult.match.token.toObject(), {depth: 10}));
-    console.log(inspect(matchResult.canaries, {depth: 2}));
-    console.log(this.sequence.toSourceCursor(matchResult.match.cursor));
-    const {match} = matchResult;
-    if (match.cursor.segment < this.sequence.segments.length) {
-      return MatchResult.failureFrom(rootRule, matchResult.canaries);
+    // If the match did not consume the entire sequence, it is a failure.
+    if (matchResult.match.cursor.segment < this.sequence.segments.length) {
+      matchResult.match = undefined;
     }
 
     return matchResult;
@@ -429,7 +457,6 @@ export class StarRule extends Rule {
       cursor,
     };
 
-    //console.log(matchResult.canaries);
     return MatchResult.successFrom(this, result, matchResult.canaries);
   }
 
@@ -467,7 +494,7 @@ export class SymbolRule extends Rule {
       throw new Error(`Duplicate initialization of rule ${this.rule}`); //@@
     }
 
-    SymbolRule.symbolize(rule, this.symbol);
+    //SymbolRule.symbolize(rule, this.symbol);
 
     // Look for left recursion.
     if (rule instanceof UnionRule) {
