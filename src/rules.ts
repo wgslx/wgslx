@@ -546,6 +546,8 @@ export class SymbolRule extends Rule {
       );
     }
 
+    console.log('entering left-recursion', this);
+
     // If left recursive, we keep matching the body as long as a tail matches after.
     // TODO: We can optimize by working backwards by matching as many body instances first.
     const tailRule = this.leftRecursiveTail;
@@ -589,6 +591,8 @@ export class SymbolRule extends Rule {
       // Collect the canaries of the tail.
       tailCanaries.push(...tailMatchResult.canaries);
     }
+
+    //console.log('no recursive match', this);
 
     // If we never matched the tail, we simply return the initial match.
     initialMatchResult.match.token = Token.symbol(

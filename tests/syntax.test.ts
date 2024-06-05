@@ -9,6 +9,7 @@ import {
   structDecl,
   functionDecl,
   translationUnitExtended,
+  shortCircuitAndExpression,
 } from '../src/syntax';
 import {Token, TokenJson} from '../src/token';
 
@@ -110,6 +111,17 @@ function stringify(token: Token | undefined, depth = 0): string {
 
 describe('tokens', () => {
   describe('expression', () => {
+    test('recursion', () => {
+      const context = Context.from('a + b + c', 'file');
+      const cursor = Cursor(0);
+
+      const {match, canaries} = context.matchSource(expression);
+      //expect(match?.cursor).toEqual(Cursor(5));
+      console.log(shortCircuitAndExpression);
+      console.log(canaries);
+      expect(match?.token?.toString()).toEqual('a + b + c');
+    });
+
     // test('additive, indexing, swizzle', () => {
     //   const context = Context.from('a[4] + b.xyz', 'file');
     //   const cursor = Cursor(0);

@@ -35,6 +35,16 @@ describe('sequence', () => {
         segment('f', 2, 5, 'file'),
       ]);
     });
+
+    test('collapses whitespace multiple lines', () => {
+      const sequence = Sequence.from('a  b c  d', 'file');
+      expect(sequence.segments).toEqual([
+        segment('a', 0, 0, 'file'),
+        segment('b', 0, 3, 'file'),
+        segment('c', 0, 5, 'file'),
+        segment('d', 0, 8, 'file'),
+      ]);
+    });
   });
 
   describe('match', () => {
