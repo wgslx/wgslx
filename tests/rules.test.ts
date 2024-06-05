@@ -591,15 +591,13 @@ describe('union', () => {
     });
 
     test('left-recursion succeeds and passes canaries', () => {
-      const context = Context.from('a a a b b', 'file');
+      const context = Context.from('a b b c', 'file');
       const rule = symbol('rule');
       const litA = literal('a');
       const litB = literal('b');
       const sequenceRule = sequence(rule, litB);
       rule.set(union(litA, sequenceRule));
       expect(rule.isLeftRecursive()).toBeTruthy();
-
-      // 'a' | rule 'b'
 
       const cursor = {
         segment: 0,
@@ -608,7 +606,7 @@ describe('union', () => {
 
       const {match, canaries} = context.rule(cursor, rule);
       expect(match?.cursor).toEqual({
-        segment: 4,
+        segment: 3,
         offset: 0,
       });
       expect(match?.token.toObject()).toEqual({
@@ -618,56 +616,22 @@ describe('union', () => {
             source: '0:0:file',
           },
           {
-            text: 'a',
+            text: 'b',
             source: '0:2:file',
           },
           {
-            text: 'a',
-            source: '0:4:file',
-          },
-          {
             text: 'b',
-            source: '0:6:file',
+            source: '0:4:file',
           },
         ],
         modifier: 'L',
         symbol: 'rule',
       });
       expect(canaries).toBeTruthy();
-      expect(canaries).toEqual([]);
-    });
-
-    test('left-recursion succeeds and passes canaries', () => {
-      const context = Context.from('a a c', 'file');
-      const rule = symbol('rule');
-      const litA = literal('a');
-      const litB = literal('b');
-      const sequenceRule = sequence(rule, litB);
-      rule.set(union(litA, sequenceRule));
-      expect(rule.isLeftRecursive()).toBeTruthy();
-
-      // 'a' | rule 'b'
-
-      const cursor = {
-        segment: 0,
-        offset: 0,
-      };
-
-      const {match, canaries} = context.rule(cursor, rule);
-      expect(match?.cursor).toEqual({
-        segment: 1,
-        offset: 0,
-      });
-      expect(match?.token.toObject()).toEqual({
-        text: 'a',
-        symbol: 'rule',
-        source: '0:0:file',
-      });
-      expect(canaries).toBeTruthy();
       expect(canaries).toEqual([
         {
           cursor: {
-            segment: 2,
+            segment: 3,
             offset: 0,
           },
           rules: [litB, rule],

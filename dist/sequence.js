@@ -100,13 +100,17 @@ class Sequence {
                     i += match[0].length;
                     continue;
                 }
-                segments.push({
+                const segment = {
                     text: line.substring(i, match.index),
                     file,
                     line: l,
                     column: i,
-                });
-                i = match.index + match.length;
+                };
+                if (segment.text.match(BLANKSPACE_GLOBAL_REGEX)) {
+                    throw new Error('Whitespace in text segment.');
+                }
+                segments.push(segment);
+                i = match.index + match[0].length;
             }
             if (i !== line.length) {
                 segments.push({

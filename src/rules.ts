@@ -529,82 +529,50 @@ export class SymbolRule extends Rule {
     }
 
     // Match the body once.
-    let initialMatchResult = context.rule(cursor, bodyRule);
-    if (!initialMatchResult.match) {
-      return MatchResult.failureFrom(this, initialMatchResult.canaries);
+    let matchResult = context.rule(cursor, bodyRule);
+    if (!matchResult.match) {
+      return MatchResult.failureFrom(this, matchResult.canaries);
     }
 
     if (!this.leftRecursiveTail) {
-      initialMatchResult.match.token = Token.symbol(
-        initialMatchResult.match.token,
+      matchResult.match.token = Token.symbol(
+        matchResult.match.token,
         this.symbol
       );
       return MatchResult.successFrom(
         this,
-        initialMatchResult.match,
-        initialMatchResult.canaries
+        matchResult.match,
+        matchResult.canaries
       );
     }
 
-    console.log('entering left-recursion', this);
-
-    // If left recursive, we keep matching the body as long as a tail matches after.
-    // TODO: We can optimize by working backwards by matching as many body instances first.
+    // If left recursive, we keep matching the tail rule until it fails.
     const tailRule = this.leftRecursiveTail;
-    const recursiveBodyMatchResults: MatchResult[] = [initialMatchResult];
+    const tokens = [matchResult.match.token];
+    const canaries: Canary[] = [...matchResult.canaries];
 
-    // Try to match the body rule as many times as possible.
-    let matchResult = context.rule(initialMatchResult.match.cursor, bodyRule);
-    while (matchResult.match) {
-      recursiveBodyMatchResults.push(matchResult);
-      matchResult = context.rule(matchResult.match.cursor, bodyRule);
+    let tailMatchResult = context.rule(matchResult.match.cursor, tailRule);
+    while (tailMatchResult.match) {
+      tokens.push(tailMatchResult.match.token);
+      canaries.push(...tailMatchResult.canaries);
+      matchResult = tailMatchResult;
+      tailMatchResult = context.rule(tailMatchResult.match.cursor, tailRule);
     }
 
-    // Try to match the tail once.
-    let tailCanaries: Canary[] = [];
-    for (let i = recursiveBodyMatchResults.length - 1; i >= 0; i--) {
-      const bodyMatchResult = recursiveBodyMatchResults[i];
-      // Assert the match is not empty due to the loop condition above.
-      const tailMatchResult = context.rule(
-        bodyMatchResult.match!.cursor,
-        tailRule
-      );
-      if (tailMatchResult.match) {
-        // We have matched the longest tail recursion, collect and return.
-        const tokens = recursiveBodyMatchResults
-          .slice(0, i + 1)
-          .map((r) => r.match!.token);
-        tokens.push(tailMatchResult.match.token);
-        return MatchResult.successFrom(
-          this,
-          {
-            token: Token.group(tokens, 'L', this.symbol),
-            cursor: tailMatchResult.match.cursor,
-          },
-          // Canaries are combined from the last body match and the tail.
-          [
-            ...recursiveBodyMatchResults[i].canaries,
-            ...tailMatchResult.canaries,
-          ]
-        );
-      }
-      // Collect the canaries of the tail.
-      tailCanaries.push(...tailMatchResult.canaries);
-    }
+    canaries.push(...tailMatchResult.canaries);
 
     //console.log('no recursive match', this);
-
-    // If we never matched the tail, we simply return the initial match.
-    initialMatchResult.match.token = Token.symbol(
-      initialMatchResult.match.token,
-      this.symbol
-    );
+    const token = Token.group(tokens, 'L', this.symbol);
 
     // Canaries are combined from the initial match and the tail.
-    return MatchResult.successFrom(this, initialMatchResult.match, [
-      ...initialMatchResult.canaries,
-      ...tailCanaries,
-    ]);
+    return MatchResult.successFrom(
+      this,
+      {
+        token,
+        cursor: matchResult.match!.cursor,
+      },
+      canaries
+    );
   }
 
   constructor(name: string) {

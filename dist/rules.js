@@ -372,45 +372,30 @@ class SymbolRule extends Rule {
         if (!bodyRule) {
             throw new Error(`Uninitialized rule ${this.symbol}`);
         }
-        let initialMatchResult = context.rule(cursor, bodyRule);
-        if (!initialMatchResult.match) {
-            return MatchResult.failureFrom(this, initialMatchResult.canaries);
+        let matchResult = context.rule(cursor, bodyRule);
+        if (!matchResult.match) {
+            return MatchResult.failureFrom(this, matchResult.canaries);
         }
         if (!this.leftRecursiveTail) {
-            initialMatchResult.match.token = token_1.Token.symbol(initialMatchResult.match.token, this.symbol);
-            return MatchResult.successFrom(this, initialMatchResult.match, initialMatchResult.canaries);
+            matchResult.match.token = token_1.Token.symbol(matchResult.match.token, this.symbol);
+            return MatchResult.successFrom(this, matchResult.match, matchResult.canaries);
         }
         const tailRule = this.leftRecursiveTail;
-        const recursiveBodyMatchResults = [initialMatchResult];
-        let matchResult = context.rule(initialMatchResult.match.cursor, bodyRule);
-        while (matchResult.match) {
-            recursiveBodyMatchResults.push(matchResult);
-            matchResult = context.rule(matchResult.match.cursor, bodyRule);
+        const tokens = [matchResult.match.token];
+        const canaries = [...matchResult.canaries];
+        let tailMatchResult = context.rule(matchResult.match.cursor, tailRule);
+        while (tailMatchResult.match) {
+            tokens.push(tailMatchResult.match.token);
+            canaries.push(...tailMatchResult.canaries);
+            matchResult = tailMatchResult;
+            tailMatchResult = context.rule(tailMatchResult.match.cursor, tailRule);
         }
-        let tailCanaries = [];
-        for (let i = recursiveBodyMatchResults.length - 1; i >= 0; i--) {
-            const bodyMatchResult = recursiveBodyMatchResults[i];
-            const tailMatchResult = context.rule(bodyMatchResult.match.cursor, tailRule);
-            if (tailMatchResult.match) {
-                const tokens = recursiveBodyMatchResults
-                    .slice(0, i + 1)
-                    .map((r) => r.match.token);
-                tokens.push(tailMatchResult.match.token);
-                return MatchResult.successFrom(this, {
-                    token: token_1.Token.group(tokens, 'L', this.symbol),
-                    cursor: tailMatchResult.match.cursor,
-                }, [
-                    ...recursiveBodyMatchResults[i].canaries,
-                    ...tailMatchResult.canaries,
-                ]);
-            }
-            tailCanaries.push(...tailMatchResult.canaries);
-        }
-        initialMatchResult.match.token = token_1.Token.symbol(initialMatchResult.match.token, this.symbol);
-        return MatchResult.successFrom(this, initialMatchResult.match, [
-            ...initialMatchResult.canaries,
-            ...tailCanaries,
-        ]);
+        canaries.push(...tailMatchResult.canaries);
+        const token = token_1.Token.group(tokens, 'L', this.symbol);
+        return MatchResult.successFrom(this, {
+            token,
+            cursor: matchResult.match.cursor,
+        }, canaries);
     }
     constructor(name) {
         super();

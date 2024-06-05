@@ -116,9 +116,6 @@ describe('tokens', () => {
       const cursor = Cursor(0);
 
       const {match, canaries} = context.matchSource(expression);
-      //expect(match?.cursor).toEqual(Cursor(5));
-      console.log(shortCircuitAndExpression);
-      console.log(canaries);
       expect(match?.token?.toString()).toEqual('a + b + c');
     });
 

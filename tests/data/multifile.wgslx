@@ -9,7 +9,7 @@ fn main(
     vec2(-0.5, -0.5),
     vec2(0.5, -0.5)
   );
-  var a = 1 + 1 - 2;
+  
   /* Test comment */
   return vec4f(pos[vertexIndex], 0.0, 1.0);
 }

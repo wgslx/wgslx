@@ -95,8 +95,7 @@ class Token {
         }
         const parent = new Token();
         parent.children = [token];
-        if (symbol)
-            parent.symbol = symbol;
+        parent.symbol = symbol;
         return parent;
     }
     static idCount = 0;
